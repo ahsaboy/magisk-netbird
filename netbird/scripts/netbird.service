@@ -12,6 +12,9 @@
 NB_DIR="/data/adb/netbird"
 . "${NB_DIR}/settings.sh"
 
+# HOME for Go's os.UserConfigDir() / os.UserHomeDir()
+export HOME="${NB_DIR}/"
+
 # ──────────────────────────────────────────────
 # Start
 # ──────────────────────────────────────────────
