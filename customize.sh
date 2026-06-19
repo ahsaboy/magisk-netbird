@@ -66,7 +66,7 @@ if [ "${NB_HAVE_BUNDLED}" = true ]; then
 else
   ui_print "  - netbird binary: not bundled, downloading..."
   TARBALL="netbird_${NB_VERSION}_linux_${F_ARCH}.tar.gz"
-  DOWNLOAD_URL="https://github.com/netbirdio/netbird/releases/download/v${NB_VERSION}/${TARBALL}"
+  DOWNLOAD_URL="https://gh-proxy.org/github.com/netbirdio/netbird/releases/download/v${NB_VERSION}/${TARBALL}"
 
   ui_print "  - Downloading from: ${DOWNLOAD_URL}"
   if command -v wget >/dev/null 2>&1; then

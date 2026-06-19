@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
     inputs:
       netbird_version:
-        description: 'NetBird version to bundle (e.g., 0.73.0)'
+        description: 'NetBird version (e.g., 0.73.0)'
         required: true
       bump:
         description: 'Module version bump'
@@ -18,64 +18,90 @@ on:
 permissions:
   contents: write
 
+env:
+  GO_VERSION: '1.22'
+  NB_DATA: '/data/adb/netbird'
+
 jobs:
   release:
     name: Release
     runs-on: ubuntu-latest
-
     steps:
       - uses: actions/checkout@v4
+        with: { fetch-depth: 0 }
+
+      - uses: actions/setup-go@v5
         with:
-          fetch-depth: 0
-          token: ${{ secrets.GITHUB_TOKEN }}
+          go-version: '${{ env.GO_VERSION }}'
+          cache: true
 
       - name: Determine versions
         id: ver
         run: |
           NB_VER="${{ github.event.inputs.netbird_version || '0.73.0' }}"
           echo "nb_version=$NB_VER" >> $GITHUB_OUTPUT
-
-          # Bump module version (only on workflow_dispatch)
           if [ "${{ github.event_name }}" = "workflow_dispatch" ] && \
              [ "${{ github.event.inputs.bump }}" != "none" ] && \
              [ -n "${{ github.event.inputs.bump }}" ]; then
             bash .github/tools/version-bump.sh "${{ github.event.inputs.bump }}"
           fi
-
           echo "module_version=$(grep '^version=' module.prop | cut -d= -f2)" >> $GITHUB_OUTPUT
 
-      # Update NB_VERSION in customize.sh to match
-      - name: Sync NetBird version in customize.sh
+      - name: Sync NetBird version
         run: |
           sed -i "s|^NB_VERSION=.*|NB_VERSION=\"${{ steps.ver.outputs.nb_version }}\"|" customize.sh
 
-      - name: Download NetBird arm64 binary
+      - name: Clone and patch NetBird source
         run: |
-          mkdir -p netbird/bin
           NB_VER="${{ steps.ver.outputs.nb_version }}"
-          echo "Downloading netbird_${NB_VER}_linux_arm64.tar.gz..."
-          wget -q "https://github.com/netbirdio/netbird/releases/download/v${NB_VER}/netbird_${NB_VER}_linux_arm64.tar.gz" \
-            -O /tmp/nb-arm64.tar.gz
-          mkdir -p /tmp/nb-arm64
-          tar -xzf /tmp/nb-arm64.tar.gz -C /tmp/nb-arm64
-          BIN=$(find /tmp/nb-arm64 -maxdepth 2 -name "netbird" -type f | head -1)
-          cp "$BIN" netbird/bin/netbird-arm64
-          chmod 755 netbird/bin/netbird-arm64
-          echo "OK: arm64"
-          ls -la netbird/bin/
+          git clone --depth 1 --branch "v${NB_VER}" https://github.com/netbirdio/netbird.git src
+
+          # Patch hardcoded Linux paths to Android-writable paths
+          # /etc/netbird/ -> /data/adb/netbird/data/ (config)
+          # /var/log/netbird/ -> /data/adb/netbird/run/ (logs)
+          # /var/run/netbird.sock -> /data/adb/netbird/run/netbird.sock (socket)
+          # /var/lib/netbird/ -> /data/adb/netbird/data/ (state)
+          NB_DATA="${{ env.NB_DATA }}"
+
+          # Patch root.go: config, log, daemon paths
+          sed -i "s|\"/etc/netbird/\"|\"${NB_DATA}/data/\"|g" src/client/cmd/root.go
+          sed -i "s|\"/var/log/netbird/\"|\"${NB_DATA}/run/\"|g" src/client/cmd/root.go
+          sed -i "s|\"/var/run/netbird.sock\"|\"${NB_DATA}/run/netbird.sock\"|g" src/client/cmd/root.go
+
+          # Patch all /var/lib/netbird references (state directory)
+          grep -rl "/var/lib/netbird" src/client/ | while read f; do
+            sed -i "s|/var/lib/netbird|${NB_DATA}/data|g" "$f"
+          done
+
+          # Patch result.json cleanup path
+          grep -rl "result.json" src/client/ | while read f; do
+            sed -i "s|\"result.json\"|\"${NB_DATA}/run/result.json\"|g" "$f"
+          done
+
+          echo "--- Patched paths ---"
+          grep -n "${NB_DATA}" src/client/cmd/root.go || true
+
+      - name: Build patched NetBird binary (arm64)
+        run: |
+          cd src
+          CGO_ENABLED=0 GOOS=linux GOARCH=arm64 \
+            go build -ldflags="-s -w -trimpath" \
+            -o ../netbird/bin/netbird-arm64 \
+            ./client
+          echo "Binary size: $(du -h ../netbird/bin/netbird-arm64 | cut -f1)"
 
       - name: ShellCheck
         uses: ludeeus/action-shellcheck@2.0.0
         with: { scandir: '.', severity: warning }
 
-      - name: Full ZIP (with binaries)
+      - name: Full ZIP
         run: |
           V="${{ steps.ver.outputs.module_version }}"
           zip -r9 "Magisk-NetBird-${V}.zip" \
             META-INF/ module.prop customize.sh service.sh uninstall.sh update.json netbird/ \
             -x '.git/*' -x '.github/*'
 
-      - name: Lite ZIP (downloads binary at install)
+      - name: Lite ZIP
         run: |
           V="${{ steps.ver.outputs.module_version }}"
           zip -r9 "Magisk-NetBird-${V}-lite.zip" \
@@ -96,19 +122,13 @@ jobs:
             Magisk-NetBird-*.zip
             checksums.sha256
 
-      - name: Commit version changes
+      - name: Commit version
         if: github.event_name == 'workflow_dispatch'
         run: |
           sed -i "s|^updateJson=.*|updateJson=https://raw.githubusercontent.com/${{ github.repository }}/main/update.json|" module.prop
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add module.prop update.json customize.sh
-          git diff --staged --quiet || git commit -m "chore: release ${{ steps.ver.outputs.module_version }} (netbird ${{ steps.ver.outputs.nb_version }})"
-          # Push to the branch that triggered the workflow
+          git diff --staged --quiet || git commit -m "chore: release ${{ steps.ver.outputs.module_version }} (netbird v${{ steps.ver.outputs.nb_version }})"
           BRANCH=$(git rev-parse --abbrev-ref HEAD)
-          if [ "$BRANCH" = "HEAD" ]; then
-            # Detached HEAD (tag trigger) — push to main
-            git push origin HEAD:main || echo "WARN: push failed"
-          else
-            git push || echo "WARN: push failed"
-          fi
+          [ "$BRANCH" = "HEAD" ] && git push origin HEAD:main || git push
