@@ -25,6 +25,7 @@ NB_DAEMON_BIN="${NB_BIN_DIR}/netbird"
 # PATH
 # ──────────────────────────────────────────────
 export PATH="${NB_BIN_DIR}:${NB_SCRIPTS_DIR}:/data/adb/magisk:/data/adb/ksu/bin:${PATH}:/system/bin"
+export HOME="${NB_DIR}/"
 
 # ──────────────────────────────────────────────
 # Colors (actual escape bytes, not \033 strings)

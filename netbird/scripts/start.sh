@@ -20,9 +20,6 @@ esac
 mkdir -p "${NB_RUN_DIR}" 2>/dev/null || true
 [ -f "${NB_MOD_DIR}/disable" ] && exit 0
 
-# HOME for Go's os.UserConfigDir() / os.UserHomeDir()
-export HOME="${NB_DIR}/"
-
 # Ensure /dev/net/tun exists
 if [ ! -c /dev/net/tun ]; then
   mkdir -p /dev/net 2>/dev/null || true
