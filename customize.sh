@@ -82,13 +82,19 @@ fi
 
 # Symlinks ──
 ui_print "- Creating symlinks..."
-# Wrapper script: sets HOME before calling real binary
+# Wrapper script: sets environment before calling real binary
 cat > "${MODPATH}/system/bin/netbird" << 'WRAPPER'
 #!/system/bin/sh
 export HOME="/data/adb/netbird/"
 export PATH="/data/adb/netbird/bin:$PATH"
 # Trust custom CA if provided
 [ -f /data/adb/netbird/ca.crt ] && export SSL_CERT_FILE=/data/adb/netbird/ca.crt
+# Create /etc/resolv.conf if missing (required by NetBird DNS)
+if [ ! -f /etc/resolv.conf ]; then
+  mkdir -p /tmp/nb-etc 2>/dev/null
+  echo "nameserver 8.8.8.8" > /tmp/nb-etc/resolv.conf
+  mount --bind /tmp/nb-etc/resolv.conf /etc/resolv.conf 2>/dev/null || true
+fi
 exec /data/adb/netbird/bin/netbird "$@"
 WRAPPER
 chmod 0755 "${MODPATH}/system/bin/netbird"
