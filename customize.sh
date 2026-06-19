@@ -82,7 +82,17 @@ fi
 
 # Symlinks ──
 ui_print "- Creating symlinks..."
-ln -sf "${NB_BIN_DIR}/netbird" "${MODPATH}/system/bin/netbird"
+# Wrapper script: sets HOME before calling real binary
+cat > "${MODPATH}/system/bin/netbird" << 'WRAPPER'
+#!/system/bin/sh
+export HOME="/data/adb/netbird/"
+export PATH="/data/adb/netbird/bin:$PATH"
+# Trust custom CA if provided
+[ -f /data/adb/netbird/ca.crt ] && export SSL_CERT_FILE=/data/adb/netbird/ca.crt
+exec /data/adb/netbird/bin/netbird "$@"
+WRAPPER
+chmod 0755 "${MODPATH}/system/bin/netbird"
+
 ln -sf "${NB_SCRIPTS_DIR}/netbird.service" "${MODPATH}/system/bin/netbird.service"
 
 # ── Permissions ──
