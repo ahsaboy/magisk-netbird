@@ -23,36 +23,44 @@ mkdir -p "${NB_RUN_DIR}" 2>/dev/null || true
 # Check if module is disabled
 [ -f "${NB_MOD_DIR}/disable" ] && exit 0
 
-# ── Critical: Set HOME before anything else ──
-# Go's os.UserHomeDir() reads $HOME. Without this, NetBird tries to
-# create /.config/ (read-only on Android) and fails.
+# ── Critical: Set HOME ──
 export HOME="${NB_DIR}/"
 
-# ── Android environment setup ──
+# ── Make /var writable ──
+# Android rootfs is read-only. NetBird hardcodes /var/run/netbird.sock
+# and /var/log/netbird/. We must remount rootfs rw to create these.
+mount -o remount,rw / 2>/dev/null || true
 
-# Create /etc/resolv.conf (Android doesn't have it, Go DNS resolver needs it)
+# Create /var/run/netbird (for gRPC socket)
+# Create /var/log/netbird (for daemon logs)
+for d in /var/run/netbird /var/log/netbird /var/lib/netbird; do
+  if [ ! -d "$d" ]; then
+    mkdir -p "$d" 2>/dev/null || true
+  fi
+done
+
+# Remount rootfs back to read-only (security)
+mount -o remount,ro / 2>/dev/null || true
+
+# ── Create other required directories ──
+mkdir -p "${NB_DIR}/.config/netbird" 2>/dev/null || true
+mkdir -p /etc/netbird 2>/dev/null || true
+
+# Create /etc/resolv.conf (Go DNS resolver needs it)
 if [ ! -f /etc/resolv.conf ]; then
-  mkdir -p /etc 2>/dev/null || true
+  mount -o remount,rw / 2>/dev/null || true
   cat > /etc/resolv.conf << 'RESOLV'
 nameserver 8.8.8.8
 nameserver 1.1.1.1
 RESOLV
+  mount -o remount,ro / 2>/dev/null || true
 fi
 
-# Create directories NetBird expects on Linux
-# These are hardcoded paths in the binary
-for d in \
-  "${NB_DIR}/.config/netbird" \
-  /etc/netbird \
-  /var/lib/netbird \
-  /var/log/netbird \
-  /var/run/netbird; do
-  mkdir -p "$d" 2>/dev/null || true
-done
-
-# Symlink config to /etc/netbird if missing
+# Symlink config
 if [ ! -f /etc/netbird/config.json ] && [ -f "${NB_DATA_DIR}/config.json" ]; then
-  ln -sf "${NB_DATA_DIR}/config.json" /etc/netbird/config.json
+  mount -o remount,rw / 2>/dev/null || true
+  ln -sf "${NB_DATA_DIR}/config.json" /etc/netbird/config.json 2>/dev/null || true
+  mount -o remount,ro / 2>/dev/null || true
 fi
 
 # Ensure /dev/net/tun exists

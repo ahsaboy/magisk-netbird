@@ -46,6 +46,13 @@ for d in "${NB_DIR}" "${NB_BIN_DIR}" "${NB_SCRIPTS_DIR}" "${NB_RUN_DIR}" \
   mkdir -p "$d"
 done
 
+# Create /var dirs (Android rootfs may be read-only, try remount)
+mount -o remount,rw / 2>/dev/null || true
+for d in /var/run/netbird /var/log/netbird /var/lib/netbird /etc/netbird; do
+  mkdir -p "$d" 2>/dev/null || true
+done
+mount -o remount,ro / 2>/dev/null || true
+
 # ── Install netbird binary ──
 # Try bundled binary first, fall back to download
 ui_print "- Installing netbird binary..."
