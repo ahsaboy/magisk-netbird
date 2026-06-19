@@ -27,6 +27,9 @@ NB_DAEMON_BIN="${NB_BIN_DIR}/netbird"
 export PATH="${NB_BIN_DIR}:${NB_SCRIPTS_DIR}:/data/adb/magisk:/data/adb/ksu/bin:${PATH}:/system/bin"
 export HOME="${NB_DIR}/"
 
+# Trust custom CA certificate if provided
+[ -f "${NB_DIR}/ca.crt" ] && export SSL_CERT_FILE="${NB_DIR}/ca.crt"
+
 # ──────────────────────────────────────────────
 # Colors (actual escape bytes, not \033 strings)
 # ──────────────────────────────────────────────
