@@ -84,15 +84,28 @@ jobs:
           done
 
           # Skip TLS certificate verification (Android may lack root CAs)
-          # For each file: only patch if it has tls.Config but NO InsecureSkipVerify
-          find src/client -name "*.go" | while read f; do
-            grep -q 'tls\.Config' "$f" || continue
-            grep -q 'InsecureSkipVerify' "$f" && continue
-            sed -i 's/&tls\.Config{/\&tls.Config{InsecureSkipVerify: true, /g' "$f"
-            sed -i 's/tls\.Config{/tls.Config{InsecureSkipVerify: true, /g' "$f"
+          # Two-pronged approach:
+          # 1. Create init() file for default TLS config
+          # 2. Targeted sed: change InsecureSkipVerify: false -> true in ALL client .go files
+
+          # Part 1: init() file
+          cat > src/client/cmd/android_tls_patch.go << 'GOFILE'
+          package cmd
+
+          import "crypto/tls"
+
+          func init() {
+            tls.DefaultConfig.InsecureSkipVerify = true
+          }
+          GOFILE
+
+          # Part 2: flip all "InsecureSkipVerify: false" to true
+          find src/client -name "*.go" -exec grep -l 'InsecureSkipVerify: false' {} \; | while read f; do
+            sed -i 's/InsecureSkipVerify: false/InsecureSkipVerify: true/g' "$f"
+            echo "  patched: $f"
           done
-          echo "--- TLS patches applied ---"
-          grep -rn 'InsecureSkipVerify' src/client/ | head -15 || echo "WARN: no patches found"
+
+          echo "--- TLS verification disabled ---"
 
       - name: Build patched NetBird binary (arm64)
         run: |
