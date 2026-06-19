@@ -1,58 +1,65 @@
 #!/system/bin/sh
-# Quick test - run on Android as root
+# Quick test - Magic Mount approach for /var
 NB_DIR="/data/adb/netbird"
+MODPATH="/data/adb/modules_update/magisk-netbird"
 export HOME="${NB_DIR}/"
 
-echo "=== NetBird Quick Test ==="
+echo "=== NetBird Test: Magic Mount /var ==="
 
-# 1. Create backing dirs in writable location
-mkdir -p "${NB_DIR}/var/run" "${NB_DIR}/var/log" "${NB_DIR}/var/lib" "${NB_DIR}/.config/netbird"
+# 1. Create /var structure in module's system/ directory
+#    Magisk Magic Mount will overlay this onto the real filesystem
+echo "[1] Creating /var in module system overlay..."
+mkdir -p "${MODPATH}/system/var/run/netbird"
+mkdir -p "${MODPATH}/system/var/log/netbird"
+mkdir -p "${MODPATH}/system/var/lib/netbird"
+mkdir -p "${MODPATH}/system/etc/netbird"
 
-# 2. Mount fresh tmpfs on /var/run/netbird
-#    /var is a 0-size read-only tmpfs, but we can mount ON TOP of a path.
-echo "[1] Mounting tmpfs on /var/run/netbird..."
-mount -t tmpfs -o size=1M tmpfs /var/run/netbird 2>&1
-mount -t tmpfs -o size=1M tmpfs /var/log/netbird 2>&1
-mount -t tmpfs -o size=1M tmpfs /var/lib/netbird 2>&1
+echo "    ${MODPATH}/system/var/run/netbird created"
+ls -la "${MODPATH}/system/var/run/netbird/"
 
-# Verify
-if mount | grep -q "tmpfs on /var/run/netbird"; then
-  echo "    /var/run/netbird: tmpfs mounted OK"
-  ls -ld /var/run/netbird
+# 2. Check if /var already exists (might be from previous Magic Mount)
+echo ""
+echo "[2] Current /var status:"
+ls -ld /var 2>&1 || echo "  /var does not exist"
+ls -ld /var/run 2>&1 || echo "  /var/run does not exist"
+ls -ld /var/run/netbird 2>&1 || echo "  /var/run/netbird does not exist"
+
+# 3. Try to create /var via remount (might work with Magisk)
+echo ""
+echo "[3] Trying Magisk resetprop to disable dm-verity..."
+resetprop ro.debuggable 1 2>/dev/null
+mount -o remount,rw / 2>&1
+if mkdir -p /var/run/netbird 2>/dev/null; then
+  echo "    SUCCESS - /var/run/netbird created via remount"
+  mount -o remount,ro / 2>/dev/null
 else
-  echo "    tmpfs mount FAILED"
+  echo "    FAILED - /var still not writable"
+  mount -o remount,ro / 2>/dev/null
 fi
 
-# 3. resolv.conf - mount tmpfs on /etc if needed, or write to /data
-echo "[2] Setting up DNS..."
-mount -t tmpfs -o size=64K tmpfs /tmp/nb-etc 2>/dev/null
-echo "nameserver 8.8.8.8" > /tmp/nb-etc/resolv.conf 2>/dev/null
-mount --bind /tmp/nb-etc/resolv.conf /etc/resolv.conf 2>/dev/null || {
-  echo "    /etc/resolv.conf bind mount failed, trying direct write..."
-  # Try writing to /data and telling Go to use it
-  echo "nameserver 8.8.8.8" > "${NB_DIR}/resolv.conf"
-  echo "    Created ${NB_DIR}/resolv.conf as fallback"
-}
-[ -f /etc/resolv.conf ] && echo "    /etc/resolv.conf: OK" || echo "    /etc/resolv.conf: MISSING"
-
-# 4. TUN
-[ -c /dev/net/tun ] && echo "[3] /dev/net/tun OK" || echo "[3] /dev/net/tun MISSING"
-
-# 5. Start daemon
-echo "[4] Starting daemon..."
-export NB_WG_KERNEL_DISABLED=true
-netbird service run --log-level debug --log-file "${NB_DIR}/run/netbird.log" &
-PID=$!
-sleep 3
-
-if kill -0 $PID 2>/dev/null; then
-  echo "    Daemon running PID=$PID"
-  echo ""
-  echo "=== SUCCESS ==="
-  echo "Run in another terminal:"
-  echo "  export HOME=/data/adb/netbird/"
-  echo "  netbird up --management-url https://82.156.12.252:4430 --setup-key 38B5E78D-E7EA-4D89-83D9-3F5588C132F8"
+# 4. Alternative: symlink /var to /data/adb/netbird/var
+echo ""
+echo "[4] Trying symlink approach..."
+mount -o remount,rw / 2>&1
+if ln -sf "${NB_DIR}/var" /var 2>/dev/null; then
+  echo "    Symlink /var -> ${NB_DIR}/var created"
+  mount -o remount,ro / 2>/dev/null
+  if [ -d /var/run/netbird ]; then
+    echo "    /var/run/netbird accessible via symlink: YES"
+  else
+    echo "    /var/run/netbird accessible via symlink: NO"
+  fi
 else
-  echo "    Daemon FAILED. Log:"
-  tail -20 "${NB_DIR}/run/netbird.log" 2>/dev/null
+  echo "    Symlink failed (rootfs still read-only)"
+  mount -o remount,ro / 2>/dev/null
 fi
+
+# 5. Report
+echo ""
+echo "=== IMPORTANT ==="
+echo "If /var still doesn't exist, you MUST REBOOT for Magic Mount to take effect."
+echo "After reboot, check: ls -la /var/run/netbird/"
+echo ""
+echo "If that also fails, the only remaining option is:"
+echo "  1. adb disable-verity && adb reboot"
+echo "  2. Then remount rw and create /var"

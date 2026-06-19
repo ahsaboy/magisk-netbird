@@ -62,7 +62,7 @@ if unzip -qqjo "$ZIPFILE" "netbird/bin/netbird-${F_ARCH}" -d "${TMPDIR}" 2>/dev/
 else
   ui_print "  - netbird binary: not bundled, downloading..."
   TARBALL="netbird_${NB_VERSION}_linux_${F_ARCH}.tar.gz"
-  DOWNLOAD_URL="https://github.com/netbirdio/netbird/releases/download/v${NB_VERSION}/${TARBALL}"
+  DOWNLOAD_URL="https://gh-proxy.org/github.com/netbirdio/netbird/releases/download/v${NB_VERSION}/${TARBALL}"
 
   wget --no-check-certificate --timeout=120 -qO "${TMPDIR}/${TARBALL}" "${DOWNLOAD_URL}" 2>&1 || {
     ui_print "  wget failed, trying curl..."
@@ -105,7 +105,17 @@ if [ ! -f "${NB_DATA_DIR}/config.json" ]; then
 EOF
 fi
 
-# ── Symlinks ──
+# ── Create /var structure in module overlay ──
+# Android rootfs is read-only ext4, /var doesn't exist.
+# Magisk Magic Mount overlays module's system/ onto /system.
+# By placing var/ in system/, we get /var/ on the device after reboot.
+ui_print "- Creating /var overlay for NetBird..."
+mkdir -p "${MODPATH}/system/var/run/netbird"
+mkdir -p "${MODPATH}/system/var/log/netbird"
+mkdir -p "${MODPATH}/system/var/lib/netbird"
+mkdir -p "${MODPATH}/system/etc/netbird"
+
+# Symlinks ──
 ui_print "- Creating symlinks..."
 ln -sf "${NB_BIN_DIR}/netbird" "${MODPATH}/system/bin/netbird"
 ln -sf "${NB_SCRIPTS_DIR}/netbird.service" "${MODPATH}/system/bin/netbird.service"
