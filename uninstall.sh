@@ -3,9 +3,6 @@
 
 NB_DIR="/data/adb/netbird"
 NB_SCRIPTS_DIR="${NB_DIR}/scripts"
-# shellcheck disable=SC2034
-NB_PID_FILE="${NB_DIR}/run/netbird.pid"
-
 # Stop daemon
 if [ -x "${NB_SCRIPTS_DIR}/netbird.service" ]; then
   sh "${NB_SCRIPTS_DIR}/netbird.service" stop 2>/dev/null || true

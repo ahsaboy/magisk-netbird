@@ -18,7 +18,6 @@ NB_CONFIG_FILE="${NB_DATA_DIR}/config.json"
 NB_LOG_FILE="${NB_RUN_DIR}/netbird.log"
 NB_RUN_LOG_FILE="${NB_RUN_DIR}/service.log"
 NB_PID_FILE="${NB_RUN_DIR}/netbird.pid"
-NB_SOCK_FILE="${NB_RUN_DIR}/netbird.sock"
 
 NB_DAEMON_BIN="${NB_BIN_DIR}/netbird"
 
@@ -71,6 +70,7 @@ set_module_prop() {
   local key="$1" value="$2" file="${3:-${NB_MOD_DIR}/module.prop}"
   [ -f "${file}" ] || { echo "${key}=${value}" > "${file}"; return; }
   local tmp="${file}.tmp"
+  local line
   while IFS= read -r line; do
     case "${line}" in "${key}="*) echo "${key}=${value}";; *) echo "${line}";; esac
   done < "${file}" > "${tmp}" && mv -f "${tmp}" "${file}"

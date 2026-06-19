@@ -46,51 +46,15 @@ for d in "${NB_DIR}" "${NB_BIN_DIR}" "${NB_SCRIPTS_DIR}" "${NB_RUN_DIR}" \
   mkdir -p "$d"
 done
 
-# ── Install netbird binary ──
-# Try bundled binary first, fall back to download
+# ── Install netbird binary (bundled only) ──
 ui_print "- Installing netbird binary..."
-NB_HAVE_BUNDLED=false
 unzip -qqjo "$ZIPFILE" "netbird/bin/netbird-${F_ARCH}" -d "${TMPDIR}" 2>/dev/null && \
-  [ -f "${TMPDIR}/netbird-${F_ARCH}" ] && NB_HAVE_BUNDLED=true
+  [ -f "${TMPDIR}/netbird-${F_ARCH}" ] || \
+  abort "! Bundled netbird binary not found for ${F_ARCH}"
 
-if [ "${NB_HAVE_BUNDLED}" = true ]; then
-  mv -f "${TMPDIR}/netbird-${F_ARCH}" "${NB_BIN_DIR}/netbird"
-  chmod 0755 "${NB_BIN_DIR}/netbird"
-  ui_print "  - netbird binary: bundled"
-else
-  ui_print "  - netbird binary: not bundled, downloading..."
-  TARBALL="netbird_${NB_VERSION}_linux_${F_ARCH}.tar.gz"
-  DOWNLOAD_URL="https://github.com/netbirdio/netbird/releases/download/v${NB_VERSION}/${TARBALL}"
-
-  ui_print "  - Downloading from: ${DOWNLOAD_URL}"
-  if command -v wget >/dev/null 2>&1; then
-    wget --no-check-certificate --timeout=120 -qO "${TMPDIR}/${TARBALL}" "${DOWNLOAD_URL}" 2>&1 || {
-      ui_print "  wget failed, trying curl..."
-      curl -fSL --connect-timeout 30 --max-time 300 -o "${TMPDIR}/${TARBALL}" "${DOWNLOAD_URL}" 2>&1 || {
-        abort "! Failed to download: ${DOWNLOAD_URL}"
-      }
-    }
-  else
-    curl -fSL --connect-timeout 30 --max-time 300 -o "${TMPDIR}/${TARBALL}" "${DOWNLOAD_URL}" 2>&1 || {
-      abort "! Failed to download: ${DOWNLOAD_URL}"
-    }
-  fi
-
-  # Verify downloaded file is a valid tar.gz (not an HTML error page)
-  [ -s "${TMPDIR}/${TARBALL}" ] || abort "! Downloaded file is empty"
-  file "${TMPDIR}/${TARBALL}" 2>/dev/null | grep -qi 'gzip\|tar' 2>/dev/null || \
-    head -c 3 "${TMPDIR}/${TARBALL}" | od -An -tx1 | grep -q '1f 8b' || \
-    abort "! Downloaded file is not a valid gzip archive"
-
-  ui_print "  Extracting..."
-  tar -xzf "${TMPDIR}/${TARBALL}" -C "${TMPDIR}" || abort "! Failed to extract tarball"
-
-  NB_BIN=$(find "${TMPDIR}" -maxdepth 2 -name "netbird" -type f 2>/dev/null | head -1)
-  [ -z "${NB_BIN}" ] && abort "! netbird binary not found in tarball"
-  mv -f "${NB_BIN}" "${NB_BIN_DIR}/netbird"
-  chmod 0755 "${NB_BIN_DIR}/netbird"
-  ui_print "  - netbird binary: downloaded"
-fi
+mv -f "${TMPDIR}/netbird-${F_ARCH}" "${NB_BIN_DIR}/netbird"
+chmod 0755 "${NB_BIN_DIR}/netbird"
+ui_print "  - netbird binary: bundled (${F_ARCH})"
 
 # ── Install scripts (essential - abort on failure) ──
 ui_print "- Installing scripts..."

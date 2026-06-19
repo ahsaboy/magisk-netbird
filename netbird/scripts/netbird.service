@@ -37,7 +37,7 @@ do_start() {
   fi
 
   "$@" >> "${NB_LOG_FILE}" 2>&1 &
-  echo $! > "${NB_PID_FILE}"
+  echo "$!" > "${NB_PID_FILE}"
   sleep 2
 
   if is_running "${NB_PID_FILE}"; then

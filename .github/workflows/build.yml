@@ -70,7 +70,8 @@ jobs:
           # Patch root.go: config, log, daemon paths
           sed -i "s|\"/etc/netbird/\"|\"${NB_DATA}/data/\"|g" src/client/cmd/root.go
           sed -i "s|\"/var/log/netbird/\"|\"${NB_DATA}/run/\"|g" src/client/cmd/root.go
-          sed -i "s|\"/var/run/netbird.sock\"|\"${NB_DATA}/run/netbird.sock\"|g" src/client/cmd/root.go
+          # Socket address includes the "unix:///" scheme prefix
+          sed -i "s|\"unix:///var/run/netbird.sock\"|\"unix://${NB_DATA}/run/netbird.sock\"|g" src/client/cmd/root.go
 
           # Patch all /var/lib/netbird references (state directory)
           grep -rl "/var/lib/netbird" src/client/ | while read f; do
@@ -99,14 +100,6 @@ jobs:
           V="${{ steps.ver.outputs.module_version }}"
           zip -r9 "Magisk-NetBird-${V}.zip" \
             META-INF/ module.prop customize.sh service.sh uninstall.sh update.json netbird/ \
-            -x '.git/*' -x '.github/*'
-
-      - name: Lite ZIP
-        run: |
-          V="${{ steps.ver.outputs.module_version }}"
-          zip -r9 "Magisk-NetBird-${V}-lite.zip" \
-            META-INF/ module.prop customize.sh service.sh uninstall.sh update.json \
-            netbird/scripts/ netbird/settings.sh \
             -x '.git/*' -x '.github/*'
 
       - name: Checksums
