@@ -5,48 +5,41 @@ export HOME="${NB_DIR}/"
 
 echo "=== NetBird Quick Test ==="
 
-# 1. Create writable backing dirs
-echo "[1] Creating backing dirs..."
+# 1. Create backing dirs in writable location
 mkdir -p "${NB_DIR}/var/run" "${NB_DIR}/var/log" "${NB_DIR}/var/lib" "${NB_DIR}/.config/netbird"
 
-# 2. Bind mount over /var/run/netbird (bypass read-only rootfs)
-echo "[2] Bind mounting /var/run/netbird..."
-mount --bind "${NB_DIR}/var/run" /var/run/netbird 2>/dev/null || {
-  echo "    Bind mount failed, trying remount rw first..."
-  mount -o remount,rw / 2>/dev/null
-  mkdir -p /var/run/netbird /var/log/netbird /var/lib/netbird 2>/dev/null
-  mount -o remount,ro / 2>/dev/null
-  mount --bind "${NB_DIR}/var/run" /var/run/netbird 2>/dev/null
-}
-mount --bind "${NB_DIR}/var/log" /var/log/netbird 2>/dev/null || true
-mount --bind "${NB_DIR}/var/lib" /var/lib/netbird 2>/dev/null || true
+# 2. Mount fresh tmpfs on /var/run/netbird
+#    /var is a 0-size read-only tmpfs, but we can mount ON TOP of a path.
+echo "[1] Mounting tmpfs on /var/run/netbird..."
+mount -t tmpfs -o size=1M tmpfs /var/run/netbird 2>&1
+mount -t tmpfs -o size=1M tmpfs /var/log/netbird 2>&1
+mount -t tmpfs -o size=1M tmpfs /var/lib/netbird 2>&1
 
 # Verify
-if [ -d /var/run/netbird ] && [ -w /var/run/netbird ]; then
-  echo "    /var/run/netbird: writable OK"
+if mount | grep -q "tmpfs on /var/run/netbird"; then
+  echo "    /var/run/netbird: tmpfs mounted OK"
+  ls -ld /var/run/netbird
 else
-  echo "    /var/run/netbird: STILL NOT WRITABLE"
-  echo "    Trying direct remount approach..."
-  mount -o remount,rw / 2>/dev/null
-  mkdir -p /var/run/netbird 2>&1
-  mount -o remount,ro / 2>/dev/null
+  echo "    tmpfs mount FAILED"
 fi
 
-# 3. resolv.conf
-echo "[3] Creating /etc/resolv.conf..."
-echo "nameserver 8.8.8.8" > "${NB_DIR}/var/resolv.conf"
-mount --bind "${NB_DIR}/var/resolv.conf" /etc/resolv.conf 2>/dev/null || {
-  mount -o remount,rw / 2>/dev/null
-  echo "nameserver 8.8.8.8" > /etc/resolv.conf 2>/dev/null
-  mount -o remount,ro / 2>/dev/null
+# 3. resolv.conf - mount tmpfs on /etc if needed, or write to /data
+echo "[2] Setting up DNS..."
+mount -t tmpfs -o size=64K tmpfs /tmp/nb-etc 2>/dev/null
+echo "nameserver 8.8.8.8" > /tmp/nb-etc/resolv.conf 2>/dev/null
+mount --bind /tmp/nb-etc/resolv.conf /etc/resolv.conf 2>/dev/null || {
+  echo "    /etc/resolv.conf bind mount failed, trying direct write..."
+  # Try writing to /data and telling Go to use it
+  echo "nameserver 8.8.8.8" > "${NB_DIR}/resolv.conf"
+  echo "    Created ${NB_DIR}/resolv.conf as fallback"
 }
-[ -f /etc/resolv.conf ] && echo "    OK" || echo "    FAILED"
+[ -f /etc/resolv.conf ] && echo "    /etc/resolv.conf: OK" || echo "    /etc/resolv.conf: MISSING"
 
 # 4. TUN
-[ -c /dev/net/tun ] && echo "[4] /dev/net/tun OK" || echo "[4] /dev/net/tun MISSING"
+[ -c /dev/net/tun ] && echo "[3] /dev/net/tun OK" || echo "[3] /dev/net/tun MISSING"
 
 # 5. Start daemon
-echo "[5] Starting daemon..."
+echo "[4] Starting daemon..."
 export NB_WG_KERNEL_DISABLED=true
 netbird service run --log-level debug --log-file "${NB_DIR}/run/netbird.log" &
 PID=$!
@@ -60,6 +53,6 @@ if kill -0 $PID 2>/dev/null; then
   echo "  export HOME=/data/adb/netbird/"
   echo "  netbird up --management-url https://82.156.12.252:4430 --setup-key 38B5E78D-E7EA-4D89-83D9-3F5588C132F8"
 else
-  echo "    Daemon FAILED. Last 20 lines of log:"
+  echo "    Daemon FAILED. Log:"
   tail -20 "${NB_DIR}/run/netbird.log" 2>/dev/null
 fi

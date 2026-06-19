@@ -47,15 +47,10 @@ for d in "${NB_DIR}" "${NB_BIN_DIR}" "${NB_SCRIPTS_DIR}" "${NB_RUN_DIR}" \
   mkdir -p "$d"
 done
 
-# Bind mount /var/run/netbird (Android rootfs is read-only)
-mount --bind "${NB_DIR}/var/run" /var/run/netbird 2>/dev/null || {
-  mount -o remount,rw / 2>/dev/null
-  mkdir -p /var/run/netbird /var/log/netbird /var/lib/netbird /etc/netbird 2>/dev/null
-  mount -o remount,ro / 2>/dev/null
-  mount --bind "${NB_DIR}/var/run" /var/run/netbird 2>/dev/null || true
-}
-mount --bind "${NB_DIR}/var/log" /var/log/netbird 2>/dev/null || true
-mount --bind "${NB_DIR}/var/lib" /var/lib/netbird 2>/dev/null || true
+# Mount tmpfs on /var/run/netbird (Android /var is 0-size read-only tmpfs)
+mount -t tmpfs -o size=1M tmpfs /var/run/netbird 2>/dev/null || true
+mount -t tmpfs -o size=1M tmpfs /var/log/netbird 2>/dev/null || true
+mount -t tmpfs -o size=1M tmpfs /var/lib/netbird 2>/dev/null || true
 
 # ── Install netbird binary ──
 # Try bundled binary first, fall back to download

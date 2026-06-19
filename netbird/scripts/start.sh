@@ -24,37 +24,28 @@ mkdir -p "${NB_RUN_DIR}" 2>/dev/null || true
 # Critical: Set HOME for Go binary
 export HOME="${NB_DIR}/"
 
-# Create /var/run/netbird via bind mount
-# Android rootfs is read-only, /var may be 0-size tmpfs.
-# Solution: create writable dir in /data, bind mount it over /var/run/netbird.
-mkdir -p "${NB_DIR}/var/run" "${NB_DIR}/var/log" "${NB_DIR}/var/lib"
-mkdir -p "${NB_DIR}/.config/netbird" /etc/netbird 2>/dev/null || true
+# Create backing dirs in writable /data
+mkdir -p "${NB_DIR}/var/run" "${NB_DIR}/var/log" "${NB_DIR}/var/lib" "${NB_DIR}/.config/netbird"
 
-mount --bind "${NB_DIR}/var/run" /var/run/netbird 2>/dev/null || {
-  # If /var/run/netbird doesn't exist, create it first (remount rw)
-  mount -o remount,rw / 2>/dev/null
-  mkdir -p /var/run/netbird /var/log/netbird /var/lib/netbird 2>/dev/null
-  mount -o remount,ro / 2>/dev/null
-  # Now bind mount
-  mount --bind "${NB_DIR}/var/run" /var/run/netbird 2>/dev/null || true
-}
-mount --bind "${NB_DIR}/var/log" /var/log/netbird 2>/dev/null || true
-mount --bind "${NB_DIR}/var/lib" /var/lib/netbird 2>/dev/null || true
+# Mount tmpfs on /var/run/netbird (Android /var is 0-size read-only tmpfs)
+# This gives NetBird a writable socket directory without modifying rootfs
+mount -t tmpfs -o size=1M tmpfs /var/run/netbird 2>/dev/null || true
+mount -t tmpfs -o size=1M tmpfs /var/log/netbird 2>/dev/null || true
+mount -t tmpfs -o size=1M tmpfs /var/lib/netbird 2>/dev/null || true
 
-# Create /etc/resolv.conf via bind mount
-if [ ! -f /etc/resolv.conf ]; then
-  echo "nameserver 8.8.8.8" > "${NB_DIR}/var/resolv.conf"
-  mount --bind "${NB_DIR}/var/resolv.conf" /etc/resolv.conf 2>/dev/null || {
-    mount -o remount,rw / 2>/dev/null
-    echo "nameserver 8.8.8.8" > /etc/resolv.conf 2>/dev/null || true
-    echo "nameserver 1.1.1.1" >> /etc/resolv.conf 2>/dev/null || true
-    mount -o remount,ro / 2>/dev/null
-  }
-fi
+# Create /etc/netbird (may also be read-only)
+mkdir -p /etc/netbird 2>/dev/null || true
 
 # Symlink config
 if [ ! -f /etc/netbird/config.json ] && [ -f "${NB_DATA_DIR}/config.json" ]; then
   ln -sf "${NB_DATA_DIR}/config.json" /etc/netbird/config.json 2>/dev/null || true
+fi
+
+# Create /etc/resolv.conf via tmpfs + bind mount
+if [ ! -f /etc/resolv.conf ]; then
+  mkdir -p /tmp/nb-etc 2>/dev/null || true
+  echo "nameserver 8.8.8.8" > /tmp/nb-etc/resolv.conf
+  mount --bind /tmp/nb-etc/resolv.conf /etc/resolv.conf 2>/dev/null || true
 fi
 
 # Ensure /dev/net/tun exists
