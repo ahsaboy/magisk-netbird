@@ -89,11 +89,9 @@ export HOME="/data/adb/netbird/"
 export PATH="/data/adb/netbird/bin:$PATH"
 # Trust custom CA if provided
 [ -f /data/adb/netbird/ca.crt ] && export SSL_CERT_FILE=/data/adb/netbird/ca.crt
-# Create /etc/resolv.conf if missing (required by NetBird DNS)
-if [ ! -f /etc/resolv.conf ]; then
-  echo "nameserver 8.8.8.8" > /data/adb/netbird/run/resolv.conf
-  mount --bind /data/adb/netbird/run/resolv.conf /etc/resolv.conf 2>/dev/null || true
-fi
+# Create files that patched binary expects
+echo "nameserver 8.8.8.8" > /data/adb/netbird/run/resolv.conf 2>/dev/null || true
+echo 'NAME="Android"' > /data/adb/netbird/run/os-release 2>/dev/null || true
 exec /data/adb/netbird/bin/netbird "$@"
 WRAPPER
 chmod 0755 "${MODPATH}/system/bin/netbird"

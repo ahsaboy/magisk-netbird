@@ -20,18 +20,9 @@ esac
 mkdir -p "${NB_RUN_DIR}" 2>/dev/null || true
 [ -f "${NB_MOD_DIR}/disable" ] && exit 0
 
-# Create /etc/resolv.conf (required by NetBird DNS initialization)
-# Android rootfs is read-only, create file in /data and bind mount
-if [ ! -f /etc/resolv.conf ]; then
-  echo "nameserver 8.8.8.8" > "${NB_RUN_DIR}/resolv.conf"
-  mount --bind "${NB_RUN_DIR}/resolv.conf" /etc/resolv.conf 2>/dev/null || true
-fi
-
-# Create /etc/os-release (non-fatal warning)
-if [ ! -f /etc/os-release ]; then
-  echo 'NAME="Android"' > "${NB_RUN_DIR}/os-release"
-  mount --bind "${NB_RUN_DIR}/os-release" /etc/os-release 2>/dev/null || true
-fi
+# Create files that patched binary expects at /data/adb/netbird/run/
+echo "nameserver 8.8.8.8" > "${NB_RUN_DIR}/resolv.conf" 2>/dev/null || true
+echo 'NAME="Android"' > "${NB_RUN_DIR}/os-release" 2>/dev/null || true
 
 # Trust custom CA certificate if provided
 [ -f "${NB_DIR}/ca.crt" ] && export SSL_CERT_FILE="${NB_DIR}/ca.crt"

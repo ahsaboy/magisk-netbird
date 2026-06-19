@@ -107,6 +107,27 @@ jobs:
           "
           echo "--- TLS verification disabled ---"
 
+          # Patch DNS: skip /etc/resolv.conf check
+          # Error: "unable to open /etc/resolv.conf for checking owner"
+          find src/client -name "*.go" -exec grep -l 'resolv.conf' {} \; | while read f; do
+            sed -i 's|/etc/resolv.conf|/data/adb/netbird/run/resolv.conf|g' "$f"
+            echo "  patched resolv.conf: $f"
+          done
+
+          # Patch /var paths in WireGuard UAPI listener
+          find src/ -name "*.go" -exec grep -l '/var/run' {} \; | while read f; do
+            sed -i 's|/var/run|/data/adb/netbird/run|g' "$f"
+            echo "  patched /var/run: $f"
+          done
+
+          # Patch /etc/os-release (non-fatal but noisy)
+          find src/ -name "*.go" -exec grep -l '/etc/os-release' {} \; | while read f; do
+            sed -i 's|/etc/os-release|/data/adb/netbird/run/os-release|g' "$f"
+            echo "  patched os-release: $f"
+          done
+
+          echo "--- All Android patches applied ---"
+
       - name: Build patched NetBird binary (arm64)
         run: |
           cd src
