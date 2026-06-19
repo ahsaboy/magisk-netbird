@@ -8,8 +8,9 @@
 # @cmd troubleshoot| Diagnostic info
 # @cmd help        | Show help
 
-DIR=$(cd "$(dirname "$0")" && pwd -P) || DIR="/data/adb/netbird/scripts"
-. "${DIR}/../settings.sh"
+# Always use /data/adb/netbird (symlinks from /system/bin/ won't resolve correctly)
+NB_DIR="/data/adb/netbird"
+. "${NB_DIR}/settings.sh"
 
 # ──────────────────────────────────────────────
 # Start

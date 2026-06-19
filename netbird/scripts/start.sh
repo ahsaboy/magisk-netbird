@@ -23,24 +23,34 @@ mkdir -p "${NB_RUN_DIR}" 2>/dev/null || true
 # Check if module is disabled
 [ -f "${NB_MOD_DIR}/disable" ] && exit 0
 
+# ── Critical: Set HOME before anything else ──
+# Go's os.UserHomeDir() reads $HOME. Without this, NetBird tries to
+# create /.config/ (read-only on Android) and fails.
+export HOME="${NB_DIR}/"
+
 # ── Android environment setup ──
+
 # Create /etc/resolv.conf (Android doesn't have it, Go DNS resolver needs it)
 if [ ! -f /etc/resolv.conf ]; then
   mkdir -p /etc 2>/dev/null || true
   cat > /etc/resolv.conf << 'RESOLV'
 nameserver 8.8.8.8
 nameserver 1.1.1.1
-nameserver 2001:4860:4860::8888
 RESOLV
 fi
 
-# Create NetBird's default Linux directories (hardcoded in binary)
-mkdir -p /etc/netbird 2>/dev/null || true
-mkdir -p /var/lib/netbird 2>/dev/null || true
-mkdir -p /var/log/netbird 2>/dev/null || true
-mkdir -p /var/run/netbird 2>/dev/null || true
+# Create directories NetBird expects on Linux
+# These are hardcoded paths in the binary
+for d in \
+  "${NB_DIR}/.config/netbird" \
+  /etc/netbird \
+  /var/lib/netbird \
+  /var/log/netbird \
+  /var/run/netbird; do
+  mkdir -p "$d" 2>/dev/null || true
+done
 
-# Symlink config if /etc/netbird/config.json doesn't exist
+# Symlink config to /etc/netbird if missing
 if [ ! -f /etc/netbird/config.json ] && [ -f "${NB_DATA_DIR}/config.json" ]; then
   ln -sf "${NB_DATA_DIR}/config.json" /etc/netbird/config.json
 fi
@@ -52,8 +62,7 @@ if [ ! -c /dev/net/tun ]; then
   chmod 0660 /dev/net/tun 2>/dev/null || true
 fi
 
-# Set environment for NetBird daemon
-# NB_WG_KERNEL_DISABLED=true: use userspace WireGuard if kernel module not available
+# NetBird environment
 export NB_WG_KERNEL_DISABLED="${NB_WG_KERNEL_DISABLED:-true}"
 
 # ── Start service ──
