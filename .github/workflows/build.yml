@@ -49,28 +49,20 @@ jobs:
         run: |
           sed -i "s|^NB_VERSION=.*|NB_VERSION=\"${{ steps.ver.outputs.nb_version }}\"|" customize.sh
 
-      - name: Download NetBird binaries
+      - name: Download NetBird arm64 binary
         run: |
           mkdir -p netbird/bin
           NB_VER="${{ steps.ver.outputs.nb_version }}"
-          # armv6 (not armv7) — NetBird publishes armv6, compatible with armv7+
-          for arch in arm64 armv6 386 amd64; do
-            echo "Downloading netbird_${NB_VER}_linux_${arch}.tar.gz..."
-            mkdir -p "/tmp/nb-${arch}"
-            wget -q "https://github.com/netbirdio/netbird/releases/download/v${NB_VER}/netbird_${NB_VER}_linux_${arch}.tar.gz" \
-              -O "/tmp/nb-${arch}.tar.gz" || { echo "WARN: ${arch} download failed"; continue; }
-            tar -xzf "/tmp/nb-${arch}.tar.gz" -C "/tmp/nb-${arch}"
-            BIN=$(find "/tmp/nb-${arch}" -maxdepth 2 -name "netbird" -type f | head -1)
-            if [ -n "$BIN" ]; then
-              cp "$BIN" "netbird/bin/netbird-${arch}"
-              chmod 755 "netbird/bin/netbird-${arch}"
-              echo "  OK: ${arch}"
-            else
-              echo "WARN: binary not found for ${arch}"
-            fi
-          done
-          echo "--- Binaries ---"
-          ls -la netbird/bin/ || true
+          echo "Downloading netbird_${NB_VER}_linux_arm64.tar.gz..."
+          wget -q "https://github.com/netbirdio/netbird/releases/download/v${NB_VER}/netbird_${NB_VER}_linux_arm64.tar.gz" \
+            -O /tmp/nb-arm64.tar.gz
+          mkdir -p /tmp/nb-arm64
+          tar -xzf /tmp/nb-arm64.tar.gz -C /tmp/nb-arm64
+          BIN=$(find /tmp/nb-arm64 -maxdepth 2 -name "netbird" -type f | head -1)
+          cp "$BIN" netbird/bin/netbird-arm64
+          chmod 755 netbird/bin/netbird-arm64
+          echo "OK: arm64"
+          ls -la netbird/bin/
 
       - name: ShellCheck
         uses: ludeeus/action-shellcheck@2.0.0
