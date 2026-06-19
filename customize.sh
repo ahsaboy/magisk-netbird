@@ -1,6 +1,7 @@
 #!/system/bin/sh
 # @title Magisk NetBird - Install Script
 
+# shellcheck disable=SC2034
 SKIPUNZIP=1
 
 NB_DIR="/data/adb/netbird"

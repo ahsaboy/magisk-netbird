@@ -1,0 +1,4 @@
+# ShellCheck configuration for Magisk NetBird
+
+# Allow 'local' keyword in POSIX sh (Android mksh/toybox support it)
+disable=SC3043

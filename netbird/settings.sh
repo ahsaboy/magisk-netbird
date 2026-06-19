@@ -11,11 +11,13 @@ NB_BIN_DIR="${NB_DIR}/bin"
 NB_SCRIPTS_DIR="${NB_DIR}/scripts"
 NB_RUN_DIR="${NB_DIR}/run"
 NB_DATA_DIR="${NB_DIR}/data"
+# shellcheck disable=SC2034
 NB_BACKUP_DIR="${NB_DIR}/backups"
 
 NB_CONFIG_FILE="${NB_DATA_DIR}/config.json"
 NB_LOG_FILE="${NB_RUN_DIR}/netbird.log"
 NB_RUN_LOG_FILE="${NB_RUN_DIR}/service.log"
+# shellcheck disable=SC2034
 NB_PID_FILE="${NB_RUN_DIR}/netbird.pid"
 
 NB_DAEMON_BIN="${NB_BIN_DIR}/netbird"
@@ -34,6 +36,7 @@ COLOR_RED=$(printf '\033[1;31m')
 COLOR_GREEN=$(printf '\033[1;32m')
 COLOR_YELLOW=$(printf '\033[1;33m')
 COLOR_BLUE=$(printf '\033[1;34m')
+# shellcheck disable=SC2034
 COLOR_CYAN=$(printf '\033[1;36m')
 
 # ──────────────────────────────────────────────
