@@ -84,24 +84,16 @@ jobs:
           done
 
           # Skip TLS certificate verification (Android may lack root CAs)
-          # Patch Go's crypto/x509 Verify method to always succeed
-          VERIFY_FILE="$(go env GOROOT)/src/crypto/x509/verify.go"
-          # Insert "return nil, nil" at the start of Certificate.Verify
-          python3 -c "
-          import re
-          with open('$VERIFY_FILE', 'r') as f:
-            content = f.read()
-          # Patch the 'verify' method (lowercase, internal)
-          content = content.replace(
-            'func (c *Certificate) verify(opts VerifyOptions) (chains [][]*Certificate, err error) {',
-            'func (c *Certificate) verify(opts VerifyOptions) (chains [][]*Certificate, err error) { return nil, nil // PATCHED',
-            1
-          )
-          with open('$VERIFY_FILE', 'w') as f:
-            f.write(content)
-          "
-          echo "--- TLS verification patched ---"
-          grep -n "PATCHED" "$VERIFY_FILE" || echo "WARN: patch may have failed"
+          # Add InsecureSkipVerify: true to ALL tls.Config in client code
+          find src/client -name "*.go" -exec grep -l 'tls\.Config' {} \; | while read f; do
+            # Skip files that already have InsecureSkipVerify
+            grep -q 'InsecureSkipVerify' "$f" && continue
+            # Add InsecureSkipVerify: true after tls.Config{
+            sed -i 's/&tls\.Config{/\&tls.Config{InsecureSkipVerify: true, /g' "$f"
+            sed -i 's/tls\.Config{/tls.Config{InsecureSkipVerify: true, /g' "$f"
+          done
+          echo "--- TLS patches applied ---"
+          grep -rn 'InsecureSkipVerify' src/client/ | head -10 || echo "WARN: no patches found"
 
       - name: Build patched NetBird binary (arm64)
         run: |
