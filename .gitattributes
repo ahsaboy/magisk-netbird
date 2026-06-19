@@ -1,0 +1,7 @@
+# Force LF line endings for shell scripts (Android requires LF, not CRLF)
+*.sh text eol=lf
+*.prop text eol=lf
+*.json text eol=lf
+*.yaml text eol=lf
+*.yml text eol=lf
+META-INF/** text eol=lf
