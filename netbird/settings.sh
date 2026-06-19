@@ -18,6 +18,7 @@ NB_CONFIG_FILE="${NB_DATA_DIR}/config.json"
 NB_LOG_FILE="${NB_RUN_DIR}/netbird.log"
 NB_RUN_LOG_FILE="${NB_RUN_DIR}/service.log"
 NB_PID_FILE="${NB_RUN_DIR}/netbird.pid"
+NB_SOCK_FILE="${NB_RUN_DIR}/netbird.sock"
 
 NB_DAEMON_BIN="${NB_BIN_DIR}/netbird"
 
@@ -25,7 +26,6 @@ NB_DAEMON_BIN="${NB_BIN_DIR}/netbird"
 # PATH
 # ──────────────────────────────────────────────
 export PATH="${NB_BIN_DIR}:${NB_SCRIPTS_DIR}:/data/adb/magisk:/data/adb/ksu/bin:${PATH}:/system/bin"
-export HOME="${NB_DIR}/"
 
 # ──────────────────────────────────────────────
 # Colors (actual escape bytes, not \033 strings)

@@ -42,15 +42,9 @@ fi
 # ── Create directories ──
 ui_print "- Creating directories..."
 for d in "${NB_DIR}" "${NB_BIN_DIR}" "${NB_SCRIPTS_DIR}" "${NB_RUN_DIR}" \
-         "${NB_DATA_DIR}" "${NB_BACKUP_DIR}" "${NB_DIR}/var/run" "${NB_DIR}/var/log" \
-         "${NB_DIR}/var/lib" "${MODPATH}/system/bin" /data/adb/service.d; do
+         "${NB_DATA_DIR}" "${NB_BACKUP_DIR}" "${MODPATH}/system/bin" /data/adb/service.d; do
   mkdir -p "$d"
 done
-
-# Mount tmpfs on /var/run/netbird (Android /var is 0-size read-only tmpfs)
-mount -t tmpfs -o size=1M tmpfs /var/run/netbird 2>/dev/null || true
-mount -t tmpfs -o size=1M tmpfs /var/log/netbird 2>/dev/null || true
-mount -t tmpfs -o size=1M tmpfs /var/lib/netbird 2>/dev/null || true
 
 # ── Install netbird binary ──
 # Try bundled binary first, fall back to download
@@ -66,7 +60,7 @@ if [ "${NB_HAVE_BUNDLED}" = true ]; then
 else
   ui_print "  - netbird binary: not bundled, downloading..."
   TARBALL="netbird_${NB_VERSION}_linux_${F_ARCH}.tar.gz"
-  DOWNLOAD_URL="https://gh-proxy.org/github.com/netbirdio/netbird/releases/download/v${NB_VERSION}/${TARBALL}"
+  DOWNLOAD_URL="https://github.com/netbirdio/netbird/releases/download/v${NB_VERSION}/${TARBALL}"
 
   ui_print "  - Downloading from: ${DOWNLOAD_URL}"
   if command -v wget >/dev/null 2>&1; then
@@ -121,24 +115,6 @@ if [ ! -f "${NB_DATA_DIR}/config.json" ]; then
 }
 EOF
 fi
-
-# ── Create /var for NetBird ──
-# Android rootfs is read-only ext4, /var doesn't exist.
-# Solution: create dirs in /data/adb/netbird/var/ and symlink /var -> it.
-ui_print "- Setting up /var for NetBird..."
-mkdir -p "${NB_DIR}/var/run/netbird"
-mkdir -p "${NB_DIR}/var/log/netbird"
-mkdir -p "${NB_DIR}/var/lib/netbird"
-mkdir -p "${NB_DIR}/.config/netbird"
-
-# Also put var/ in module's system/ for Magic Mount fallback
-mkdir -p "${MODPATH}/system/var/run/netbird"
-mkdir -p "${MODPATH}/system/var/log/netbird"
-mkdir -p "${MODPATH}/system/var/lib/netbird"
-mkdir -p "${MODPATH}/system/etc/netbird"
-
-# Create symlink /var -> /data/adb/netbird/var
-ln -sf "${NB_DIR}/var" /var 2>/dev/null || true
 
 # Symlinks ──
 ui_print "- Creating symlinks..."
