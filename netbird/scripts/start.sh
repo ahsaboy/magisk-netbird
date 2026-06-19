@@ -21,22 +21,16 @@ mkdir -p "${NB_RUN_DIR}" 2>/dev/null || true
 [ -f "${NB_MOD_DIR}/disable" ] && exit 0
 
 # Create /etc/resolv.conf (required by NetBird DNS initialization)
-# Android rootfs is read-only, use tmpfs mount
+# Android rootfs is read-only, create file in /data and bind mount
 if [ ! -f /etc/resolv.conf ]; then
-  mkdir -p /tmp/nb-etc 2>/dev/null || true
-  echo "nameserver 8.8.8.8" > /tmp/nb-etc/resolv.conf
-  mount --bind /tmp/nb-etc/resolv.conf /etc/resolv.conf 2>/dev/null || {
-    # Fallback: mount tmpfs on /etc/resolv.conf path
-    mount -t tmpfs -o size=4K tmpfs /tmp/nb-resolv 2>/dev/null || true
-    echo "nameserver 8.8.8.8" > /tmp/nb-resolv/resolv.conf 2>/dev/null || true
-    mount --bind /tmp/nb-resolv/resolv.conf /etc/resolv.conf 2>/dev/null || true
-  }
+  echo "nameserver 8.8.8.8" > "${NB_RUN_DIR}/resolv.conf"
+  mount --bind "${NB_RUN_DIR}/resolv.conf" /etc/resolv.conf 2>/dev/null || true
 fi
 
-# Create /etc/os-release (non-fatal warning but good to have)
+# Create /etc/os-release (non-fatal warning)
 if [ ! -f /etc/os-release ]; then
-  echo 'NAME="Android"' > /tmp/nb-etc/os-release 2>/dev/null || true
-  mount --bind /tmp/nb-etc/os-release /etc/os-release 2>/dev/null || true
+  echo 'NAME="Android"' > "${NB_RUN_DIR}/os-release"
+  mount --bind "${NB_RUN_DIR}/os-release" /etc/os-release 2>/dev/null || true
 fi
 
 # Trust custom CA certificate if provided

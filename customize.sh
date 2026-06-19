@@ -91,9 +91,8 @@ export PATH="/data/adb/netbird/bin:$PATH"
 [ -f /data/adb/netbird/ca.crt ] && export SSL_CERT_FILE=/data/adb/netbird/ca.crt
 # Create /etc/resolv.conf if missing (required by NetBird DNS)
 if [ ! -f /etc/resolv.conf ]; then
-  mkdir -p /tmp/nb-etc 2>/dev/null
-  echo "nameserver 8.8.8.8" > /tmp/nb-etc/resolv.conf
-  mount --bind /tmp/nb-etc/resolv.conf /etc/resolv.conf 2>/dev/null || true
+  echo "nameserver 8.8.8.8" > /data/adb/netbird/run/resolv.conf
+  mount --bind /data/adb/netbird/run/resolv.conf /etc/resolv.conf 2>/dev/null || true
 fi
 exec /data/adb/netbird/bin/netbird "$@"
 WRAPPER
