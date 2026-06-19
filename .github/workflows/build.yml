@@ -84,11 +84,27 @@ jobs:
           done
 
           # Skip TLS certificate verification (Android may lack root CAs)
-          # Flip all InsecureSkipVerify: false -> true in client code
-          find src/client -name "*.go" -exec grep -l 'InsecureSkipVerify: false' {} \; | while read f; do
-            sed -i 's/InsecureSkipVerify: false/InsecureSkipVerify: true/g' "$f"
-            echo "  patched: $f"
-          done
+          # Go's tls.Config defaults InsecureSkipVerify to false.
+          # Most code doesn't explicitly write it, so we must INSERT it.
+          python3 -c "
+          import os, re
+          for root, dirs, files in os.walk('src/client'):
+            for fname in files:
+              if not fname.endswith('.go'): continue
+              fpath = os.path.join(root, fname)
+              with open(fpath, 'r') as f: content = f.read()
+              if 'InsecureSkipVerify: true' in content: continue
+              if 'tls.Config' not in content: continue
+              # Insert InsecureSkipVerify: true after tls.Config{
+              new = re.sub(
+                r'(tls\.Config\{)',
+                r'\1\n\t\t\t\tInsecureSkipVerify: true,',
+                content
+              )
+              if new != content:
+                with open(fpath, 'w') as f: f.write(new)
+                print('  patched: ' + fpath)
+          "
           echo "--- TLS verification disabled ---"
 
       - name: Build patched NetBird binary (arm64)
