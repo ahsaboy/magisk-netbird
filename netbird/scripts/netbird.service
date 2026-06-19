@@ -12,6 +12,9 @@
 NB_DIR="/data/adb/netbird"
 . "${NB_DIR}/settings.sh"
 
+# Daemon socket in writable /data (Android /var doesn't exist)
+NB_SOCK="unix://${NB_RUN_DIR}/netbird.sock"
+
 # ──────────────────────────────────────────────
 # Start
 # ──────────────────────────────────────────────
@@ -26,7 +29,8 @@ do_start() {
   log Info "Starting NetBird daemon..."
 
   # Build command safely (no eval)
-  set -- "${NB_DAEMON_BIN}" service run --log-level info --log-file "${NB_LOG_FILE}"
+  set -- "${NB_DAEMON_BIN}" --daemon-addr "${NB_SOCK}" service run \
+    --log-level info --log-file "${NB_LOG_FILE}"
 
   # Add management URL if non-default
   if [ -f "${NB_CONFIG_FILE}" ]; then
@@ -81,13 +85,13 @@ do_status() {
   # Show netbird status
   if is_running "${NB_PID_FILE}" && [ -x "${NB_DAEMON_BIN}" ]; then
     echo ""
-    "${NB_DAEMON_BIN}" status 2>/dev/null || true
+    "${NB_DAEMON_BIN}" --daemon-addr "${NB_SOCK}" status 2>/dev/null || true
   fi
 
   if [ "${1:-}" = "peer" ] && [ -x "${NB_DAEMON_BIN}" ]; then
     echo ""
     printf '%s--- Peers ---%s\n' "${COLOR_CYAN}" "${COLOR_RESET}"
-    "${NB_DAEMON_BIN}" status --detail 2>/dev/null || true
+    "${NB_DAEMON_BIN}" --daemon-addr "${NB_SOCK}" status --detail 2>/dev/null || true
   fi
 
   echo ""
@@ -153,8 +157,9 @@ do_help() {
   echo "  help         This message"
   echo ""
   echo "Setup:"
-  echo "  su -c '${NB_DAEMON_BIN} up --setup-key <KEY>'"
-  echo "  su -c '${NB_DAEMON_BIN} up --setup-key <KEY> --management-url <URL>'"
+  echo "  export HOME=/data/adb/netbird/"
+  echo "  netbird --daemon-addr '${NB_SOCK}' up --setup-key <KEY>"
+  echo "  netbird --daemon-addr '${NB_SOCK}' up --setup-key <KEY> --management-url <URL>"
 }
 
 # ──────────────────────────────────────────────
