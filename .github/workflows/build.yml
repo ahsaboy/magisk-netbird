@@ -1,0 +1,122 @@
+name: Release Magisk NetBird Module
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      netbird_version:
+        description: 'NetBird version to bundle (e.g., 0.73.0)'
+        required: true
+      bump:
+        description: 'Module version bump'
+        required: false
+        default: 'patch'
+        type: choice
+        options: [none, major, minor, patch]
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    name: Release
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Determine versions
+        id: ver
+        run: |
+          NB_VER="${{ github.event.inputs.netbird_version || '0.73.0' }}"
+          echo "nb_version=$NB_VER" >> $GITHUB_OUTPUT
+
+          # Bump module version (only on workflow_dispatch)
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ] && \
+             [ "${{ github.event.inputs.bump }}" != "none" ] && \
+             [ -n "${{ github.event.inputs.bump }}" ]; then
+            bash .github/tools/version-bump.sh "${{ github.event.inputs.bump }}"
+          fi
+
+          echo "module_version=$(grep '^version=' module.prop | cut -d= -f2)" >> $GITHUB_OUTPUT
+
+      # Update NB_VERSION in customize.sh to match
+      - name: Sync NetBird version in customize.sh
+        run: |
+          sed -i "s|^NB_VERSION=.*|NB_VERSION=\"${{ steps.ver.outputs.nb_version }}\"|" customize.sh
+
+      - name: Download NetBird binaries
+        run: |
+          mkdir -p netbird/bin
+          NB_VER="${{ steps.ver.outputs.nb_version }}"
+          # armv6 (not armv7) — NetBird publishes armv6, compatible with armv7+
+          for arch in arm64 armv6 386 amd64; do
+            echo "Downloading netbird_${NB_VER}_linux_${arch}.tar.gz..."
+            mkdir -p "/tmp/nb-${arch}"
+            wget -q "https://github.com/netbirdio/netbird/releases/download/v${NB_VER}/netbird_${NB_VER}_linux_${arch}.tar.gz" \
+              -O "/tmp/nb-${arch}.tar.gz" || { echo "WARN: ${arch} download failed"; continue; }
+            tar -xzf "/tmp/nb-${arch}.tar.gz" -C "/tmp/nb-${arch}"
+            BIN=$(find "/tmp/nb-${arch}" -maxdepth 2 -name "netbird" -type f | head -1)
+            if [ -n "$BIN" ]; then
+              cp "$BIN" "netbird/bin/netbird-${arch}"
+              chmod 755 "netbird/bin/netbird-${arch}"
+              echo "  OK: ${arch}"
+            else
+              echo "WARN: binary not found for ${arch}"
+            fi
+          done
+          echo "--- Binaries ---"
+          ls -la netbird/bin/ || true
+
+      - name: ShellCheck
+        uses: ludeeus/action-shellcheck@2.0.0
+        with: { scandir: '.', severity: warning }
+
+      - name: Full ZIP (with binaries)
+        run: |
+          V="${{ steps.ver.outputs.module_version }}"
+          zip -r9 "Magisk-NetBird-${V}.zip" \
+            META-INF/ module.prop customize.sh service.sh uninstall.sh update.json netbird/ \
+            -x '.git/*' -x '.github/*'
+
+      - name: Lite ZIP (downloads binary at install)
+        run: |
+          V="${{ steps.ver.outputs.module_version }}"
+          zip -r9 "Magisk-NetBird-${V}-lite.zip" \
+            META-INF/ module.prop customize.sh service.sh uninstall.sh update.json \
+            netbird/scripts/ netbird/settings.sh \
+            -x '.git/*' -x '.github/*'
+
+      - name: Checksums
+        run: sha256sum *.zip > checksums.sha256
+
+      - name: Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ steps.ver.outputs.module_version }}
+          name: "Magisk NetBird ${{ steps.ver.outputs.module_version }} (NetBird ${{ steps.ver.outputs.nb_version }})"
+          generate_release_notes: true
+          files: |
+            Magisk-NetBird-*.zip
+            checksums.sha256
+
+      - name: Commit version changes
+        if: github.event_name == 'workflow_dispatch'
+        run: |
+          sed -i "s|^updateJson=.*|updateJson=https://raw.githubusercontent.com/${{ github.repository }}/main/update.json|" module.prop
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add module.prop update.json customize.sh
+          git diff --staged --quiet || git commit -m "chore: release ${{ steps.ver.outputs.module_version }} (netbird ${{ steps.ver.outputs.nb_version }})"
+          # Push to the branch that triggered the workflow
+          BRANCH=$(git rev-parse --abbrev-ref HEAD)
+          if [ "$BRANCH" = "HEAD" ]; then
+            # Detached HEAD (tag trigger) — push to main
+            git push origin HEAD:main || echo "WARN: push failed"
+          else
+            git push || echo "WARN: push failed"
+          fi

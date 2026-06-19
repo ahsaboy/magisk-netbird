@@ -1,0 +1,8 @@
+id=magisk-netbird
+name=Magisk NetBird
+version=v1.0.0
+versionCode=10000
+minMagisk=20400
+author=Magisk-NetBird
+description=NetBird v0.73.0 - WireGuard-based P2P VPN for Android.
+updateJson=

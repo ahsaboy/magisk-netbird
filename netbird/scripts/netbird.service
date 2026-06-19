@@ -1,0 +1,170 @@
+#!/system/bin/sh
+# @title Magisk NetBird - Service Manager
+# @cmd start       | Start NetBird daemon
+# @cmd stop        | Stop NetBird daemon
+# @cmd restart     | Restart daemon
+# @cmd status      | Show connection status
+# @cmd log         | View logs
+# @cmd troubleshoot| Diagnostic info
+# @cmd help        | Show help
+
+DIR=$(cd "$(dirname "$0")" && pwd -P) || DIR="/data/adb/netbird/scripts"
+. "${DIR}/../settings.sh"
+
+# ──────────────────────────────────────────────
+# Start
+# ──────────────────────────────────────────────
+do_start() {
+  if is_running "${NB_PID_FILE}"; then
+    log Warning "Already running (PID: $(cat "${NB_PID_FILE}"))"
+    return 0
+  fi
+  [ -f "${NB_LOG_FILE}" ] && mv -f "${NB_LOG_FILE}" "${NB_LOG_FILE}.bak"
+  mkdir -p "${NB_RUN_DIR}"
+
+  log Info "Starting NetBird daemon..."
+
+  # Build command safely (no eval)
+  set -- "${NB_DAEMON_BIN}" service run --log-level info --log-file "${NB_LOG_FILE}"
+
+  # Add management URL if non-default
+  if [ -f "${NB_CONFIG_FILE}" ]; then
+    local url
+    url=$(grep -o '"ManagementUrl"[[:space:]]*:[[:space:]]*"[^"]*"' "${NB_CONFIG_FILE}" 2>/dev/null | sed 's/.*: *"//;s/"$//')
+    [ -n "${url}" ] && [ "${url}" != "https://api.netbird.io" ] && set -- "$@" --management-url "${url}"
+  fi
+
+  "$@" >> "${NB_LOG_FILE}" 2>&1 &
+  echo $! > "${NB_PID_FILE}"
+  sleep 2
+
+  if is_running "${NB_PID_FILE}"; then
+    log Success "Daemon started (PID: $(cat "${NB_PID_FILE}"))"
+    update_module_status "running"
+  else
+    log Error "Failed to start. Check ${NB_LOG_FILE}"
+    rm -f "${NB_PID_FILE}"
+    return 1
+  fi
+}
+
+# ──────────────────────────────────────────────
+# Stop
+# ──────────────────────────────────────────────
+do_stop() {
+  kill_pid "${NB_PID_FILE}" "netbird" 10
+  update_module_status "stopped"
+}
+
+# ──────────────────────────────────────────────
+# Status
+# ──────────────────────────────────────────────
+do_status() {
+  echo ""
+  printf '%s============================%s\n' "${COLOR_CYAN}" "${COLOR_RESET}"
+  printf '%s Magisk NetBird Status%s\n' "${COLOR_CYAN}" "${COLOR_RESET}"
+  printf '%s============================%s\n' "${COLOR_CYAN}" "${COLOR_RESET}"
+
+  if is_running "${NB_PID_FILE}"; then
+    printf '  Daemon: %sRunning%s (PID: %s)\n' "${COLOR_GREEN}" "${COLOR_RESET}" "$(cat "${NB_PID_FILE}")"
+  else
+    printf '  Daemon: %sStopped%s\n' "${COLOR_RED}" "${COLOR_RESET}"
+  fi
+
+  # Show WireGuard interface if exists
+  if ip link show wg0 > /dev/null 2>&1; then
+    local addr; addr=$(ip addr show wg0 2>/dev/null | grep "inet " | awk '{print $2}')
+    printf '  WireGuard: %swg0%s (%s)\n' "${COLOR_GREEN}" "${COLOR_RESET}" "${addr:-up}"
+  fi
+
+  # Show netbird status
+  if is_running "${NB_PID_FILE}" && [ -x "${NB_DAEMON_BIN}" ]; then
+    echo ""
+    "${NB_DAEMON_BIN}" status 2>/dev/null || true
+  fi
+
+  if [ "${1:-}" = "peer" ] && [ -x "${NB_DAEMON_BIN}" ]; then
+    echo ""
+    printf '%s--- Peers ---%s\n' "${COLOR_CYAN}" "${COLOR_RESET}"
+    "${NB_DAEMON_BIN}" status --detail 2>/dev/null || true
+  fi
+
+  echo ""
+  printf '  Data: %s\n  Logs: %s\n' "${NB_DIR}" "${NB_RUN_DIR}"
+  printf '%s============================%s\n' "${COLOR_CYAN}" "${COLOR_RESET}"
+  echo ""
+}
+
+# ──────────────────────────────────────────────
+# Log
+# ──────────────────────────────────────────────
+do_log() {
+  local file="${NB_LOG_FILE}" lines="${1:-50}"
+  [ -f "${file}" ] && tail -n "${lines}" "${file}" || echo "No log found at ${file}"
+}
+
+# ──────────────────────────────────────────────
+# Troubleshoot
+# ──────────────────────────────────────────────
+do_troubleshoot() {
+  echo ""
+  printf '%s=== Troubleshooting ===%s\n' "${COLOR_CYAN}" "${COLOR_RESET}"
+  echo "  Android: $(getprop ro.build.version.release 2>/dev/null)"
+  echo "  Arch:    $(uname -m)"
+  echo "  Kernel:  $(uname -r)"
+  echo "  Root:    $(id)"
+  echo ""
+  echo "  Binary:      $([ -x "${NB_DAEMON_BIN}" ] && echo OK || echo MISSING)"
+  echo "  Config:      $([ -f "${NB_CONFIG_FILE}" ] && echo OK || echo MISSING)"
+  echo "  /etc/resolv: $([ -f /etc/resolv.conf ] && echo OK || echo MISSING)"
+  echo "  /dev/net/tun: $([ -c /dev/net/tun ] && echo OK || echo MISSING)"
+  if grep -q wireguard /proc/modules 2>/dev/null; then
+    echo "  WireGuard:   kernel module loaded"
+  elif [ -d /sys/module/wireguard ]; then
+    echo "  WireGuard:   kernel built-in"
+  else
+    echo "  WireGuard:   not loaded (userspace mode via NB_WG_KERNEL_DISABLED)"
+  fi
+  echo ""
+  echo "  Interfaces:"
+  ip addr show 2>/dev/null | grep -E "^[0-9]+:|inet " | head -20
+  echo ""
+  echo "  Processes:"
+  ps -A 2>/dev/null | grep netbird | grep -v grep || echo "  (none)"
+  echo ""
+}
+
+# ──────────────────────────────────────────────
+# Help
+# ──────────────────────────────────────────────
+do_help() {
+  echo "Magisk NetBird Service Manager"
+  echo ""
+  echo "Usage: su -c netbird.service <command>"
+  echo ""
+  echo "Commands:"
+  echo "  start        Start NetBird daemon"
+  echo "  stop         Stop daemon"
+  echo "  restart      Restart daemon"
+  echo "  status       Show status (add 'peer' for details)"
+  echo "  log [N]      Show last N lines of log (default 50)"
+  echo "  troubleshoot Diagnostic info"
+  echo "  help         This message"
+  echo ""
+  echo "Setup:"
+  echo "  su -c '${NB_DAEMON_BIN} up --setup-key <KEY>'"
+  echo "  su -c '${NB_DAEMON_BIN} up --setup-key <KEY> --management-url <URL>'"
+}
+
+# ──────────────────────────────────────────────
+# Dispatch
+# ──────────────────────────────────────────────
+case "${1:-help}" in
+  start)       do_start ;;
+  stop)        do_stop ;;
+  restart)     do_stop; sleep 2; do_start ;;
+  status)      do_status "${2:-}" ;;
+  log)         do_log "${2:-50}" ;;
+  troubleshoot) do_troubleshoot ;;
+  help|*)      do_help ;;
+esac

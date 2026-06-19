@@ -1,0 +1,27 @@
+#!/system/bin/sh
+# @title Magisk NetBird - Inotify Watcher
+# @description Watches Magisk module directory for enable/disable toggle.
+# @usage inotifyd netbird.inotify <module_dir>
+#
+# inotifyd event codes (toybox/busybox):
+#   n = IN_CREATE (new file)  → disable file created → module DISABLED → STOP
+#   d = IN_DELETE_SELF (file removed) → disable file deleted → module ENABLED → START
+
+NB_DIR="/data/adb/netbird"
+NB_SCRIPTS_DIR="${NB_DIR}/scripts"
+
+# Only react to "disable" file changes
+[ "$3" = "disable" ] || exit 0
+
+case "$1" in
+  n)
+    # disable file CREATED → module disabled → STOP service
+    [ -x "${NB_SCRIPTS_DIR}/netbird.service" ] && \
+      sh "${NB_SCRIPTS_DIR}/netbird.service" stop > /dev/null 2>&1
+    ;;
+  d)
+    # disable file DELETED → module enabled → START service
+    [ -x "${NB_SCRIPTS_DIR}/netbird.service" ] && \
+      sh "${NB_SCRIPTS_DIR}/netbird.service" start > /dev/null 2>&1
+    ;;
+esac
