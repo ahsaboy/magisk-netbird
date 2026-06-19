@@ -84,14 +84,15 @@ jobs:
           done
 
           # Skip TLS certificate verification (Android may lack root CAs)
-          # Add InsecureSkipVerify: true to tls.Config in client code
-          # Skip lines that already have InsecureSkipVerify
-          find src/client -name "*.go" -exec grep -l 'tls\.Config' {} \; | while read f; do
-            sed -i '/InsecureSkipVerify/!s/&tls\.Config{/\&tls.Config{InsecureSkipVerify: true, /g' "$f"
-            sed -i '/InsecureSkipVerify/!s/tls\.Config{/tls.Config{InsecureSkipVerify: true, /g' "$f"
+          # For each file: only patch if it has tls.Config but NO InsecureSkipVerify
+          find src/client -name "*.go" | while read f; do
+            grep -q 'tls\.Config' "$f" || continue
+            grep -q 'InsecureSkipVerify' "$f" && continue
+            sed -i 's/&tls\.Config{/\&tls.Config{InsecureSkipVerify: true, /g' "$f"
+            sed -i 's/tls\.Config{/tls.Config{InsecureSkipVerify: true, /g' "$f"
           done
           echo "--- TLS patches applied ---"
-          grep -rn 'InsecureSkipVerify' src/client/ | head -10 || echo "WARN: no patches found"
+          grep -rn 'InsecureSkipVerify' src/client/ | head -15 || echo "WARN: no patches found"
 
       - name: Build patched NetBird binary (arm64)
         run: |
