@@ -1,4 +1,5 @@
 #!/system/bin/sh
+# shellcheck disable=SC2034  # Variables are used by scripts that source this file
 # @title Magisk NetBird Settings
 # @description Shared configuration variables and utility functions.
 
@@ -11,13 +12,11 @@ NB_BIN_DIR="${NB_DIR}/bin"
 NB_SCRIPTS_DIR="${NB_DIR}/scripts"
 NB_RUN_DIR="${NB_DIR}/run"
 NB_DATA_DIR="${NB_DIR}/data"
-# shellcheck disable=SC2034
 NB_BACKUP_DIR="${NB_DIR}/backups"
 
 NB_CONFIG_FILE="${NB_DATA_DIR}/config.json"
 NB_LOG_FILE="${NB_RUN_DIR}/netbird.log"
 NB_RUN_LOG_FILE="${NB_RUN_DIR}/service.log"
-# shellcheck disable=SC2034
 NB_PID_FILE="${NB_RUN_DIR}/netbird.pid"
 
 NB_DAEMON_BIN="${NB_BIN_DIR}/netbird"
