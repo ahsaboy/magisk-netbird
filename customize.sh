@@ -105,15 +105,23 @@ if [ ! -f "${NB_DATA_DIR}/config.json" ]; then
 EOF
 fi
 
-# ── Create /var structure in module overlay ──
+# ── Create /var for NetBird ──
 # Android rootfs is read-only ext4, /var doesn't exist.
-# Magisk Magic Mount overlays module's system/ onto /system.
-# By placing var/ in system/, we get /var/ on the device after reboot.
-ui_print "- Creating /var overlay for NetBird..."
+# Solution: create dirs in /data/adb/netbird/var/ and symlink /var -> it.
+ui_print "- Setting up /var for NetBird..."
+mkdir -p "${NB_DIR}/var/run/netbird"
+mkdir -p "${NB_DIR}/var/log/netbird"
+mkdir -p "${NB_DIR}/var/lib/netbird"
+mkdir -p "${NB_DIR}/.config/netbird"
+
+# Also put var/ in module's system/ for Magic Mount fallback
 mkdir -p "${MODPATH}/system/var/run/netbird"
 mkdir -p "${MODPATH}/system/var/log/netbird"
 mkdir -p "${MODPATH}/system/var/lib/netbird"
 mkdir -p "${MODPATH}/system/etc/netbird"
+
+# Create symlink /var -> /data/adb/netbird/var
+ln -sf "${NB_DIR}/var" /var 2>/dev/null || true
 
 # Symlinks ──
 ui_print "- Creating symlinks..."

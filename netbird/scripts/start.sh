@@ -25,27 +25,25 @@ mkdir -p "${NB_RUN_DIR}" 2>/dev/null || true
 export HOME="${NB_DIR}/"
 
 # Create backing dirs in writable /data
-mkdir -p "${NB_DIR}/var/run" "${NB_DIR}/var/log" "${NB_DIR}/var/lib" "${NB_DIR}/.config/netbird"
+mkdir -p "${NB_DIR}/var/run/netbird" "${NB_DIR}/var/log/netbird" \
+         "${NB_DIR}/var/lib/netbird" "${NB_DIR}/.config/netbird"
 
-# Mount tmpfs on /var/run/netbird (Android /var is 0-size read-only tmpfs)
-# This gives NetBird a writable socket directory without modifying rootfs
-mount -t tmpfs -o size=1M tmpfs /var/run/netbird 2>/dev/null || true
-mount -t tmpfs -o size=1M tmpfs /var/log/netbird 2>/dev/null || true
-mount -t tmpfs -o size=1M tmpfs /var/lib/netbird 2>/dev/null || true
-
-# Create /etc/netbird (may also be read-only)
-mkdir -p /etc/netbird 2>/dev/null || true
-
-# Symlink config
-if [ ! -f /etc/netbird/config.json ] && [ -f "${NB_DATA_DIR}/config.json" ]; then
-  ln -sf "${NB_DATA_DIR}/config.json" /etc/netbird/config.json 2>/dev/null || true
+# Ensure /var symlink exists (created during install, survives reboot)
+if [ ! -L /var ]; then
+  mount -o remount,rw / 2>/dev/null
+  ln -sf "${NB_DIR}/var" /var 2>/dev/null || true
+  mount -o remount,ro / 2>/dev/null
 fi
 
-# Create /etc/resolv.conf via tmpfs + bind mount
+# DNS: create resolv.conf in backing store
 if [ ! -f /etc/resolv.conf ]; then
-  mkdir -p /tmp/nb-etc 2>/dev/null || true
-  echo "nameserver 8.8.8.8" > /tmp/nb-etc/resolv.conf
-  mount --bind /tmp/nb-etc/resolv.conf /etc/resolv.conf 2>/dev/null || true
+  echo "nameserver 8.8.8.8" > "${NB_DIR}/var/resolv.conf"
+  echo "nameserver 1.1.1.1" >> "${NB_DIR}/var/resolv.conf"
+  mount --bind "${NB_DIR}/var/resolv.conf" /etc/resolv.conf 2>/dev/null || {
+    mount -o remount,rw / 2>/dev/null
+    ln -sf "${NB_DIR}/var/resolv.conf" /etc/resolv.conf 2>/dev/null || true
+    mount -o remount,ro / 2>/dev/null
+  }
 fi
 
 # Ensure /dev/net/tun exists
