@@ -84,13 +84,11 @@ jobs:
           done
 
           # Skip TLS certificate verification (Android may lack root CAs)
-          # Add InsecureSkipVerify: true to ALL tls.Config in client code
+          # Add InsecureSkipVerify: true to tls.Config in client code
+          # Skip lines that already have InsecureSkipVerify
           find src/client -name "*.go" -exec grep -l 'tls\.Config' {} \; | while read f; do
-            # Skip files that already have InsecureSkipVerify
-            grep -q 'InsecureSkipVerify' "$f" && continue
-            # Add InsecureSkipVerify: true after tls.Config{
-            sed -i 's/&tls\.Config{/\&tls.Config{InsecureSkipVerify: true, /g' "$f"
-            sed -i 's/tls\.Config{/tls.Config{InsecureSkipVerify: true, /g' "$f"
+            sed -i '/InsecureSkipVerify/!s/&tls\.Config{/\&tls.Config{InsecureSkipVerify: true, /g' "$f"
+            sed -i '/InsecureSkipVerify/!s/tls\.Config{/tls.Config{InsecureSkipVerify: true, /g' "$f"
           done
           echo "--- TLS patches applied ---"
           grep -rn 'InsecureSkipVerify' src/client/ | head -10 || echo "WARN: no patches found"
