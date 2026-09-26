@@ -98,8 +98,10 @@ CA 证书包、路由规则和防火墙规则，然后输出状态。
 | 变量 | 默认值 | 作用 |
 | --- | --- | --- |
 | `NB_DISABLE_DNS` | `true` | `up` 时同时通过 `--disable-dns` 强制禁用 DNS 管理。 |
-| `NB_DISABLE_IPV6` | `false` | 为 `true` 时 `up` 追加 `--disable-ipv6`（消除 Android 上的 `ip6tables nat` 警告）。 |
+| `NB_DISABLE_IPV6` | `false` | 为 `true` 时 `up` 追加 `--disable-ipv6`；该选项会关闭 NetBird overlay IPv6，不用于规避防火墙兼容性问题。 |
 | `NB_DISABLE_FIREWALL` | `false` | 为 `true` 时 `up` 追加 `--disable-firewall`（客户端不再管理防火墙规则）。 |
+| `NB_FORCE_USERSPACE_FIREWALL` | `自动` | Android 缺少可用的 `ip6tables` nat 表时自动启用；显式设置可覆盖自动检测。 |
+| `NB_WG_KERNEL_DISABLED` | `自动` | userspace firewall 回退启用时自动强制 userspace WireGuard，除非用户显式设置。 |
 | `NB_DISABLE_SSH_CONFIG` | `true` | 跳过写入 `/etc/ssh/ssh_config.d`（Android 上为只读）。 |
 | `NB_SKIP_NFTABLES_CHECK` | `true` | 跳过 nftables 探测（该探测在 Android 上必然失败）。 |
 | `NB_SKIP_DNS_PROBE` | `true` | 跳过本地解析器启动探测。 |
@@ -119,14 +121,15 @@ CA 证书包、路由规则和防火墙规则，然后输出状态。
 cp /data/adb/netbird/netbird.env.example /data/adb/netbird/.env
 ```
 daemon 读取的变量（如 `NB_LOG_LEVEL`）在下次 `netbird.service restart`
-后生效，无需重启手机。
+后生效，无需重启手机。Android 缺少可用的 IPv6 `nat` 表时，模块会自动启用
+NetBird userspace firewall 和 userspace WireGuard，避免 native `ip6tables` 初始化失败阻止启动。
 
 `up` 添加的参数会持久化到 `config.json`，并在（重新）连接时生效，因此
 修改后需要先执行 `netbird.service down`、再执行 `netbird.service up`
 （或直接 `netbird.service restart`）。
 
-状态监视线程会在每个刷新周期（默认 60 秒）重新应用 Android root 路由规则，
-因此 Wi-Fi/蜂窝网络切换不再需要手动重启。同一监视线程还会在每个周期探测
+状态监视线程会在每个刷新周期（默认 60 秒）重新应用 Android root 的 IPv4/IPv6 underlay 路由规则，
+因此 Wi-Fi/蜂窝/双卡网络切换不再需要手动重启。同一监视线程还会在每个周期探测
 daemon 健康，连续 3 次探测无响应即自动重启（看门狗：预算 10 次，连续 5 个
 健康周期后重置——可用 `NB_WATCHDOG*` 调整，`NB_WATCHDOG=off` 关闭）。
 `netbird.service stop`（以及卸载）会清除模块添加的所有 ip 规则和 iptables 规则。

@@ -101,8 +101,10 @@ variables (environment outranks CLI flags in NetBird):
 | Variable | Default | Effect |
 | --- | --- | --- |
 | `NB_DISABLE_DNS` | `true` | Also enforced on `up` via `--disable-dns`. |
-| `NB_DISABLE_IPV6` | `false` | When `true`, `up` appends `--disable-ipv6` (silences `ip6tables nat` warnings on Android). |
+| `NB_DISABLE_IPV6` | `false` | When `true`, `up` appends `--disable-ipv6`; this disables NetBird overlay IPv6 and is not a firewall compatibility workaround. |
 | `NB_DISABLE_FIREWALL` | `false` | When `true`, `up` appends `--disable-firewall` (client stops managing firewall rules). |
+| `NB_FORCE_USERSPACE_FIREWALL` | `auto` | Automatically forced when Android has no usable `ip6tables` nat table; set explicitly to override detection. |
+| `NB_WG_KERNEL_DISABLED` | `auto` | Automatically forced with the userspace-firewall fallback unless explicitly set. |
 | `NB_DISABLE_SSH_CONFIG` | `true` | Skips writing `/etc/ssh/ssh_config.d` (read-only on Android). |
 | `NB_SKIP_NFTABLES_CHECK` | `true` | Skips the nftables probe, which always fails on Android. |
 | `NB_SKIP_DNS_PROBE` | `true` | Skips the local-resolver startup probe. |
@@ -124,14 +126,16 @@ cp /data/adb/netbird/netbird.env.example /data/adb/netbird/.env
 ```
 
 Daemon-read variables (e.g. `NB_LOG_LEVEL`) apply after the next
-`netbird.service restart`; no reboot is needed.
+`netbird.service restart`; no reboot is needed. On Android builds without a usable IPv6
+`nat` table, the module automatically enables NetBird's userspace firewall and userspace
+WireGuard so native `ip6tables` initialization cannot block startup.
 
 Flags added by `up` persist in `config.json` and are applied on (re)connect,
 so after changing them run `netbird.service down` followed by
 `netbird.service up` (or `netbird.service restart`).
 
-The status watcher re-applies the Android root route rule every refresh cycle
-(default 60s), so Wi-Fi/cellular switches no longer require a manual restart.
+The status watcher re-applies both IPv4 and IPv6 Android root underlay rules every refresh cycle
+(default 60s), so Wi-Fi/cellular/SIM switches no longer require a manual restart.
 The same watcher probes daemon health each cycle and restarts it after 3
 consecutive failed probes (watchdog: budget10 restarts, reset after5 healthy
 cycles - tunable via `NB_WATCHDOG*`, disable with `NB_WATCHDOG=off`).
