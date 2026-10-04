@@ -1,14 +1,17 @@
 # Changelog
 
-## v1.3.0 — NetBird v0.79.0
+## v1.4.0 — NetBird v0.80.0
 
-- Builds: `magisk-netbird-x86_64.zip` / `magisk-netbird-arm64-v8a.zip` / `magisk-netbird-armv7.zip`
-- See the GitHub release notes for details.
+- Updated the bundled official NetBird client from `0.79.0` to `0.80.0` for `x86_64`, `arm64-v8a`, and `armv7` packages. The armv7 package continues to use NetBird's official `linux/armv6` build, which is compatible with the supported 32-bit ARM devices.
+- Kept release integrity checks in place: each architecture archive is downloaded from NetBird's official release and verified against its published SHA-256 checksum before packaging.
+- Carries the upstream v0.80.0 client fixes for relay disconnect peer notifications, larger daemon IPC responses (up to 16 MiB), safer HTTPS install-script downloads, and Windows service/IPC hardening. Server-side v0.80.0 changes are intentionally not described as module features because this project only bundles the client binary.
+- Refreshed the per-architecture Magisk update manifests and legacy arm64 manifest to advertise `v1.4.0-(0.80.0)`.
 
-## v1.2.0 — NetBird v0.79.0
+## v1.3.0 (2026-09-22) — NetBird v0.79.0
 
-- Builds: `magisk-netbird-x86_64.zip` / `magisk-netbird-arm64-v8a.zip` / `magisk-netbird-armv7.zip`
-- See the GitHub release notes for details.
+- Added a daemon watchdog with configurable consecutive-failure and restart limits, plus a peers/status view for the Magisk module status page.
+- Added persistent `.env` configuration for module settings and a configurable NetBird client log-rotation cap, including safer defaults for Android's read-only filesystem layout.
+- Fixed stale watcher cleanup, narrowed daemon process matching, escalated failed watcher stops from `TERM` to `KILL`, and corrected watchdog state markers and service-log timestamps.
 
 ## v1.2.0 (2026-09-22) — NetBird v0.79.0
 

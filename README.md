@@ -16,7 +16,7 @@
 <p align="center"><b><a href="README.md">English</a> · <a href="README.zh-CN.md">中文</a></b></p>
 
 Minimal Magisk module wrapper for the NetBird CLI daemon. Official NetBird
-binaries (currently v0.79.0) are bundled for three architectures and packaged
+binaries (currently v0.80.0) are bundled for three architectures and packaged
 by GitHub Actions.
 
 DNS management is disabled by default when joining with `netbird.service up`.
@@ -39,17 +39,19 @@ Kitsune and older managers too; the ACTION button needs Magisk v28+.
 ## Cutting a release
 
 ```sh
-# bump version + versionCode in module.prop (v1.3.0 -> 10300), commit, then:
-git tag v1.3.0
-git push origin main v1.3.0
+# update module.prop and CHANGELOG.md (v1.4.0 / NetBird 0.80.0), commit, then:
+git tag v1.4.0
+git push origin main v1.4.0
 ```
 
 The `Release` workflow downloads the matching official NetBird release for
 each architecture, verifies sha256 against `checksums.txt`, packages the three
 zips, attaches them to the GitHub Release, and refreshes `update/*.json`,
-`update.json` and `CHANGELOG.md` on `main`. The stamped display version is
-`<tag>-(<NetBird version>)`, e.g. `v1.3.0-(0.79.0)`; the update check itself
-uses `versionCode`.
+`update.json` and the release assets. The stamped display version is
+`<tag>-(<NetBird version>)`, e.g. `v1.4.0-(0.80.0)`; the update check itself
+uses `versionCode`. Add the release entry to `CHANGELOG.md` before tagging;
+the workflow uses that authored section as the GitHub Release body and does
+not modify the changelog.
 
 Local packaging without CI (needs `netbird/bin/netbird-<arch>` in place,
 otherwise the installer falls back to downloading at install time):

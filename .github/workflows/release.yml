@@ -6,11 +6,11 @@ on:
   workflow_dispatch:
     inputs:
       netbird_version:
-        description: 'NetBird version (e.g. 0.79.0; empty = latest)'
+        description: 'NetBird version (e.g. 0.80.0; empty = latest)'
         required: false
         default: ''
       module_version:
-        description: 'Module version (e.g. v1.2.0; empty = tag or module.prop)'
+        description: 'Module version (e.g. v1.4.0; empty = tag or module.prop)'
         required: false
         default: ''
 
@@ -136,13 +136,26 @@ jobs:
           merge-multiple: true
           path: dist
 
+      - name: Prepare release notes
+        run: |
+          set -euo pipefail
+          MV='${{ needs.build.outputs.mv }}'
+          awk -v heading="## ${MV} " '
+            index($0, heading) == 1 { found=1; print; next }
+            found && /^## / { exit }
+            found { print }
+            END { if (!found) exit 1 }
+          ' CHANGELOG.md > release-notes.md
+          test -s release-notes.md
+
       - name: Publish release assets
         uses: softprops/action-gh-release@v2
         with:
           files: dist/*.zip
-          generate_release_notes: true
+          body_path: release-notes.md
+          generate_release_notes: false
 
-      - name: Refresh update manifests and changelog
+      - name: Refresh update manifests
         run: |
           set -euo pipefail
           MV='${{ needs.build.outputs.mv }}'
@@ -164,11 +177,8 @@ jobs:
             --arg z "$ZIP_BASE/magisk-netbird-arm64-v8a.zip" --arg c "$CL" \
             '{version: $v, versionCode: $vc, zipUrl: $z, changelog: $c}' \
             > update.json
-          ENTRY="$(printf '## %s — NetBird v%s\n\n- Builds: `magisk-netbird-x86_64.zip` / `magisk-netbird-arm64-v8a.zip` / `magisk-netbird-armv7.zip`\n- See the GitHub release notes for details.\n' "$MV" "$NB")"
-          { head -n 1 CHANGELOG.md; echo; printf '%s\n' "$ENTRY"; tail -n +2 CHANGELOG.md; } > CHANGELOG.md.tmp
-          mv CHANGELOG.md.tmp CHANGELOG.md
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add update.json update/ CHANGELOG.md
+          git add update.json update/
           git diff --cached --quiet || git commit -m "chore: update manifests for ${MV}"
           git push origin HEAD:main || echo "::warning::could not push manifest refresh to main"

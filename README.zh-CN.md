@@ -16,7 +16,7 @@
 <p align="center"><b><a href="README.md">English</a> · <a href="README.zh-CN.md">中文</a></b></p>
 
 NetBird CLI 常驻进程的精简 Magisk 模块封装。为三种架构打包官方 NetBird
-二进制（当前 v0.79.0），由 GitHub Actions 自动构建。
+二进制（当前 v0.80.0），由 GitHub Actions 自动构建。
 
 使用 `netbird.service up` 加入网络时，默认禁用 DNS 管理。
 
@@ -38,16 +38,17 @@ Magisk v28+。
 ## 发布新版本
 
 ```sh
-# 先在 module.prop 中提升 version + versionCode（v1.3.0 -> 10300）并提交，然后：
-git tag v1.3.0
-git push origin main v1.3.0
+# 更新 module.prop 和 CHANGELOG.md（v1.4.0 / NetBird 0.80.0）并提交，然后：
+git tag v1.4.0
+git push origin main v1.4.0
 ```
 
 `Release` 工作流会为每个架构下载对应的官方 NetBird 发布包、用
 `checksums.txt` 校验 sha256、打包三个 zip、附加到 GitHub Release，并在
-`main` 分支上刷新 `update/*.json`、`update.json` 和 `CHANGELOG.md`。
-写入的显示版本格式为 `<tag>-(<NetBird 版本>)`（如 `v1.3.0-(0.79.0)`），
-更新检测本身以 `versionCode` 为准。
+`main` 分支上刷新 `update/*.json`、`update.json` 和发布产物。
+写入的显示版本格式为 `<tag>-(<NetBird 版本>)`（如 `v1.4.0-(0.80.0)`），
+更新检测本身以 `versionCode` 为准。发布前先手工在 `CHANGELOG.md` 写好本次
+版本条目，工作流会把该条目作为 GitHub Release 说明，不会自动改写变更日志。
 
 不走 CI 的本地打包（需要先放置 `netbird/bin/netbird-<arch>`，否则安装脚本
 会在安装时回退为在线下载）：
