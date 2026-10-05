@@ -1,5 +1,12 @@
 # Changelog
 
+## v1.4.1 — NetBird v0.80.0
+
+- Completed Android IPv4/IPv6 overlay route precedence handling and re-applied root underlay route rules for both families during network changes.
+- Added safer Android route-table detection and stale module-rule cleanup across Wi-Fi, cellular, and multi-network configurations.
+- Added an automatic userspace firewall and userspace WireGuard fallback for Android kernels without a usable IPv6 `ip6tables` `nat` table, with `NB_FORCE_USERSPACE_FIREWALL` and `NB_WG_KERNEL_DISABLED` overrides.
+- Clarified that `NB_DISABLE_IPV6` disables NetBird overlay IPv6 and is not a firewall compatibility workaround.
+
 ## v1.4.0 — NetBird v0.80.0
 
 - Updated the bundled official NetBird client from `0.79.0` to `0.80.0` for `x86_64`, `arm64-v8a`, and `armv7` packages. The armv7 package continues to use NetBird's official `linux/armv6` build, which is compatible with the supported 32-bit ARM devices.
