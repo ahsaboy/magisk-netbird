@@ -89,6 +89,23 @@ export NB_DAEMON_CMD
 NB_DISABLE_IPV6="${NB_DISABLE_IPV6:-false}"
 NB_DISABLE_FIREWALL="${NB_DISABLE_FIREWALL:-false}"
 
+# NetBird's native Linux firewall initializes both IPv4 and IPv6 backends.
+# Some Android kernels expose ip6tables but have no IPv6 nat table; in that
+# case native firewall setup fails before the client can connect. Unless the
+# user explicitly overrides it, fall back to userspace WireGuard + USPFilter.
+if [ "$NB_DISABLE_FIREWALL" != "true" ] && [ -z "${NB_FORCE_USERSPACE_FIREWALL+x}" ]; then
+  if ! command -v ip6tables >/dev/null 2>&1 ||
+    ! ip6tables -t nat -L -n >/dev/null 2>&1; then
+    NB_FORCE_USERSPACE_FIREWALL=true
+  fi
+fi
+if [ "${NB_FORCE_USERSPACE_FIREWALL:-false}" = "true" ] &&
+  [ -z "${NB_WG_KERNEL_DISABLED+x}" ]; then
+  NB_WG_KERNEL_DISABLED=true
+fi
+[ -n "${NB_FORCE_USERSPACE_FIREWALL+x}" ] && export NB_FORCE_USERSPACE_FIREWALL
+[ -n "${NB_WG_KERNEL_DISABLED+x}" ] && export NB_WG_KERNEL_DISABLED
+
 # Watchdog (module-status.sh watch loop): probe daemon health once per cycle
 # and restart it after NB_WATCHDOG_FAILS consecutive failures. The restart
 # budget (NB_WATCHDOG_MAX_RESTARTS) resets after5 healthy cycles. Set
