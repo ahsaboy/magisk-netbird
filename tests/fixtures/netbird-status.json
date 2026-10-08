@@ -12,13 +12,17 @@
         "fqdn": "peer-a",
         "netbirdIp": "100.64.0.9",
         "status": "Connected",
-        "connectionType": "P2P"
+        "connectionType": "P2P",
+        "transferReceived": 1536,
+        "transferSent": 5242880
       },
       {
         "fqdn": "peer-b",
         "netbirdIp": "100.64.0.10",
         "status": "Idle",
-        "connectionType": "-"
+        "connectionType": "-",
+        "transferReceived": 0,
+        "transferSent": 1073741824
       }
     ]
   }

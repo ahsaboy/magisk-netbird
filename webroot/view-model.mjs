@@ -35,6 +35,24 @@ export function collectPeers(value, output = [], seen = new Set()) {
   return output;
 }
 
+export function formatBytes(value) {
+  if (value === null || value === undefined || value === "" || value === "-") return "-";
+  if (typeof value === "string" && !/^\d+(?:\.\d+)?$/.test(value.trim())) return value;
+  const bytes = Number(value);
+  if (!Number.isFinite(bytes) || bytes < 0) return String(value);
+  if (bytes < 1024) return `${Math.round(bytes)} B`;
+  const units = ["KB", "MB", "GB", "TB"];
+  let amount = bytes;
+  let unit = "B";
+  for (const next of units) {
+    amount /= 1024;
+    unit = next;
+    if (amount < 1024 || next === "TB") break;
+  }
+  const digits = amount >= 100 ? 0 : amount >= 10 ? 1 : 2;
+  return `${amount.toFixed(digits).replace(/\.0+$|(?<=\.\d)0+$/, "")} ${unit}`;
+}
+
 export function statusModel(data) {
   const peers = collectPeers(data);
   const peerSummary = data?.peers && !Array.isArray(data.peers) ? data.peers : {};
@@ -62,15 +80,19 @@ export function parseNetworks(text) {
   let current = null;
   for (const rawLine of String(text ?? "").split(/\r?\n/)) {
     const line = rawLine.trim();
-    const idMatch = line.match(/^-\s+ID:\s*(\S+)/i);
+    const idMatch = line.match(/^[-*]\s+ID:\s*(\S+)/i);
     if (idMatch) {
       if (current) networks.push(current);
-      current = { id: idMatch[1], network: "-", status: "-" };
+      current = { id: idMatch[1], network: "-", domains: "-", resolvedIps: "-", status: "-" };
       continue;
     }
     if (!current) continue;
     const networkMatch = line.match(/^Network:\s*(.+)$/i);
     if (networkMatch) current.network = networkMatch[1].trim();
+    const domainsMatch = line.match(/^Domains?:\s*(.+)$/i);
+    if (domainsMatch) current.domains = domainsMatch[1].trim();
+    const resolvedMatch = line.match(/^Resolved IPs?:\s*(.+)$/i);
+    if (resolvedMatch) current.resolvedIps = resolvedMatch[1].trim();
     const statusMatch = line.match(/^Status:\s*(.+)$/i);
     if (statusMatch) current.status = statusMatch[1].trim();
   }

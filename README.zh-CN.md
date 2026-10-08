@@ -110,12 +110,11 @@ su -c '<模块目录>/action.sh version'
 
 KernelSU 用户可以打开模块的 **WebUI** 使用移动端优先的控制台。页面会把 status JSON
 解析为连接卡片和 Peers 列表，并分开展示 Peers、Networks/Routes、转发规则、健康检查、版本、状态存储、
-Profiles 和隐藏敏感字段后的配置摘要。Network 选择使用固定的 `networks select`/`deselect` 动作，单个
+Profiles。Network 选择使用固定的 `networks select`/`deselect` 动作，单个
 Network 的启用会追加到当前选择。`0.0.0.0/0` 或 `::/0` 表示管理端提供的出口路由，出口节点本身不由本模块选择。
 
-Debug Bundle、抓包和防火墙 Trace 都是受控操作：页面需要二次确认，参数经过校验，抓包时长限制为 1-30 秒，
-不会上传 Bundle，也不接受任意 shell 命令。WebUI 不展示原始日志。管理器的 ACTION 按钮仍保持无参数的
-“刷新规则并显示状态”入口。
+WebUI 不接收 setup key，也不接受任意 shell 命令。页面不展示原始日志，重点提供解析后的状态、Peers、
+路由、健康检查、Profile 和状态信息。管理器的 ACTION 按钮仍保持无参数的“刷新规则并显示状态”入口。
 
 ## 配置
 

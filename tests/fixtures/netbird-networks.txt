@@ -1,9 +1,16 @@
 Available Networks:
 
-  - ID: K70
-    Network: 0.0.0.0/0, ::/0
-    Status: Not Selected
+  - ID: network-route-srvs-site
+    Network: 192.168.100.0/24
+    Status: Selected
 
-  - ID: N10
-    Network: 0.0.0.0/0, ::/0
+  - ID: .nb.test
+    Domains: .nb.test
     Status: Not Selected
+    Resolved IPs: [srv.nb.test.]: 192.168.100.10
+
+  - ID: internal-mixed
+    Network: 10.10.0.0/16
+    Domains: grafana.internal, .lab.internal
+    Status: Selected
+    Resolved IPs: [grafana.internal]: 10.10.0.20 [db.lab.internal]: 10.10.0.21

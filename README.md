@@ -118,15 +118,14 @@ for example `su -c 'netbird.service peers'`.
 KernelSU users can open the module's **WebUI** for a mobile-first control panel.
 The page parses status JSON into connection cards and peer rows, and provides separate
 views for Peers, Networks/Routes, forwarding rules, health checks, versions, stored
-state items, profiles, and a redacted configuration summary. Network selection uses
+state items, and profiles. Network selection uses
 fixed `networks select`/`deselect` actions; selecting one route appends to the current
 selection. A `0.0.0.0/0` or `::/0` entry is an exit route supplied by the management
 service, while the exit peer itself is not selected by this module.
 
-Debug Bundle, packet capture, and firewall trace are controlled actions: the page
-requires confirmation, validates parameters, limits capture to 1-30 seconds, and
-never uploads a bundle or accepts arbitrary shell commands. Raw log output is not
-shown in the WebUI. The manager's ACTION button remains the short, no-argument
+The WebUI does not accept setup keys or arbitrary shell commands. It keeps raw log output
+out of the interface and focuses on parsed status, peer, route, health, profile, and
+state information. The manager's ACTION button remains the short, no-argument
 refresh-and-status entry point.
 
 ## Configuration

@@ -65,7 +65,8 @@
     .muted { color: var(--muted); }
     .small { color: var(--muted); font-size: 12px; }
     .topbar { display: flex; align-items: flex-start; justify-content: space-between; gap: 14px; margin-bottom: 16px; }
-    .top-actions { display: flex; gap: 7px; }
+    .top-actions { display: flex; align-items: center; gap: 7px; }
+    .language-select { min-height: 32px; padding: 5px 8px; border: 1px solid var(--line); border-radius: 6px; background: var(--panel-alt); color: var(--text); font-size: 12px; }
 
     .button, .tab {
       min-height: 40px;
@@ -148,8 +149,8 @@
     @media (max-width: 560px) {
       main { padding-inline: 11px; }
       .topbar { align-items: stretch; }
-      .top-actions { flex-direction: column; }
-      .top-actions .button { min-height: 34px; }
+      .top-actions { flex-direction: column; align-items: stretch; }
+      .top-actions .button, .language-select { min-height: 34px; }
       .metric-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
       .actions { grid-template-columns: repeat(2, minmax(0, 1fr)); }
       .health-grid { grid-template-columns: 1fr; }
@@ -173,8 +174,12 @@
         <h1>控制台</h1>
       </div>
       <div class="top-actions">
-        <button class="button compact" data-service="refresh" data-confirm="确认刷新 NetBird 运行时规则和证书？">刷新运行时</button>
-        <button class="button compact" data-service="restart" data-confirm="确认重启 NetBird daemon？">重启</button>
+        <select class="language-select" id="language-select" aria-label="语言选择">
+          <option value="zh">中文</option>
+          <option value="en">English</option>
+        </select>
+        <button class="button compact" data-service="refresh" data-confirm-key="confirmRefresh">刷新运行时</button>
+        <button class="button compact" data-service="restart" data-confirm-key="confirmRestart">重启</button>
       </div>
     </header>
 
@@ -188,8 +193,8 @@
           </div>
         </div>
         <div class="section-actions">
-          <button class="button primary" data-service="start" data-confirm="确认启动 NetBird daemon？">启动</button>
-          <button class="button danger" data-service="stop" data-confirm="确认停止 NetBird daemon？">停止</button>
+          <button class="button primary" data-service="start" data-confirm-key="confirmStart">启动</button>
+          <button class="button danger" data-service="stop" data-confirm-key="confirmStop">停止</button>
         </div>
       </div>
       <div class="metric-grid">
@@ -217,11 +222,11 @@
       <div class="panel">
         <div class="panel-head"><h2>服务操作</h2><span class="small">不会修改登录配置</span></div>
         <div class="actions">
-          <button class="button primary" data-service="start" data-confirm="确认启动 NetBird daemon？">启动 daemon</button>
-          <button class="button danger" data-service="stop" data-confirm="确认停止 NetBird daemon？">停止 daemon</button>
-          <button class="button" data-service="restart" data-confirm="确认重启 NetBird daemon？">重启 daemon</button>
-          <button class="button" data-service="refresh" data-confirm="确认刷新 NetBird 运行时规则和证书？">刷新规则</button>
-          <button class="button" data-service="route" data-confirm="确认刷新 Android 路由规则？">刷新路由</button>
+          <button class="button primary" data-service="start" data-confirm-key="confirmStart">启动 daemon</button>
+          <button class="button danger" data-service="stop" data-confirm-key="confirmStop">停止 daemon</button>
+          <button class="button" data-service="restart" data-confirm-key="confirmRestart">重启 daemon</button>
+          <button class="button" data-service="refresh" data-confirm-key="confirmRefresh">刷新规则</button>
+          <button class="button" data-service="route" data-confirm-key="confirmRoute">刷新路由</button>
           <button class="button" data-load="version">查看版本</button>
         </div>
       </div>
@@ -229,23 +234,20 @@
 
     <section class="view" data-view="peers">
       <div class="panel">
-        <div class="panel-head"><h2>对端连接</h2><button class="button compact" data-load="status">刷新</button></div>
+        <div class="panel-head"><h2>对端连接</h2><span class="small" id="peers-refresh-state"></span><button class="button compact" data-load="status">刷新</button></div>
         <div class="peer-list" id="peer-list"><div class="loading">读取中...</div></div>
       </div>
     </section>
 
     <section class="view" data-view="networks">
       <div class="panel">
-        <div class="panel-head"><h2>Networks / Routes</h2><button class="button compact" data-load="networks">刷新</button></div>
+        <div class="panel-head"><h2>Networks / Routes</h2><span class="small" id="networks-refresh-state"></span><button class="button compact" data-load="networks">刷新</button></div>
         <p class="small" style="margin-bottom:10px">启用单个 Network 会追加到当前选择，不会清除其他已选路由。显示 0.0.0.0/0 或 ::/0 时，它是管理端提供的出口路由；出口节点本身仍由管理端配置。</p>
-        <div class="network-list" id="network-list"><div class="loading">读取中...</div></div>
-      </div>
-      <div class="panel">
-        <div class="panel-head"><h2>路由选择</h2><span class="small">CLI: networks select / deselect</span></div>
-        <div class="section-actions">
+        <div class="section-actions" style="margin-bottom:10px">
           <button class="button" data-network-all="select">接受全部</button>
-          <button class="button danger" data-network-all="deselect">停用全部</button>
+          <button class="button danger" data-network-all="deselect" data-confirm-key="confirmDeselectAll">停用全部</button>
         </div>
+        <div class="network-list" id="network-list"><div class="loading">读取中...</div></div>
       </div>
       <div class="panel">
         <div class="panel-head"><h2>转发规则</h2><button class="button compact" data-load="forwarding">刷新</button></div>
@@ -275,32 +277,13 @@
         </div>
         <div class="simple-list" id="diagnostic-list" style="margin-top:10px"><div class="empty">选择一个诊断项</div></div>
       </div>
-      <div class="panel">
-        <div class="panel-head"><h2>配置摘要</h2><button class="button compact" data-load="config">读取</button></div>
-        <div class="simple-list" id="config-list"><div class="empty">配置中的敏感字段会隐藏</div></div>
-      </div>
-      <div class="panel">
-        <div class="panel-head"><h2>受控 Debug</h2><span class="small">本地生成，不上传</span></div>
-        <div class="section-actions" style="margin-bottom:10px">
-          <button class="button" data-debug="bundle" data-confirm="生成本地 debug bundle？文件可能包含设备诊断信息。">生成 Debug Bundle</button>
-        </div>
-        <div class="form-grid">
-          <label>抓包时长<select id="capture-duration"><option value="5">5 秒</option><option value="10">10 秒</option><option value="30">30 秒</option></select></label>
-          <div style="display:flex;align-items:end"><button class="button" style="width:100%" data-debug="capture" data-confirm="开始抓包？仅持续选择的时长，结果保存在本地。">开始抓包</button></div>
-          <label>方向<select id="trace-direction"><option value="out">出站</option><option value="in">入站</option></select></label>
-          <label>协议<select id="trace-protocol"><option value="tcp">TCP</option><option value="udp">UDP</option><option value="icmp">ICMP</option></select></label>
-          <label>源地址<input id="trace-source" value="self" inputmode="text"></label>
-          <label>目标地址<input id="trace-destination" placeholder="100.64.0.1" inputmode="text"></label>
-          <div class="form-wide"><button class="button" style="width:100%" data-debug="trace" data-confirm="执行防火墙 trace？请确认地址和协议参数。">执行 Trace</button></div>
-        </div>
-        <div class="simple-list" id="debug-result" style="margin-top:10px"><div class="empty">受控诊断结果会显示在这里</div></div>
-      </div>
+
     </section>
   </main>
 
   <script type="module">
     import { exec, toast } from "./kernelsu.js";
-    import { firstValue, statusModel, parseNetworks } from "./view-model.mjs";
+    import { firstValue, formatBytes, statusModel, parseNetworks } from "./view-model.mjs";
 
     const SERVICE = "/data/adb/netbird/scripts/netbird.service";
     const COMMANDS = Object.freeze({
@@ -309,15 +292,55 @@
       networks: "webui networks",
       forwarding: "webui forwarding",
       state: "webui state",
-      config: "webui config",
-      "profile-list": "webui profile-list",
-      bundle: "webui bundle"
+      "profile-list": "webui profile-list"
     });
-    const READ_ACTIONS = new Set(["status", "version", "networks", "forwarding", "state", "config", "profile-list"]);
+    const LOAD_COOLDOWN = 5000;
+    const lastLoaded = new Map();
     const esc = (value) => String(value ?? "-").replace(/[&<>'"]/g, (char) => ({"&":"&amp;","<":"&lt;",">":"&gt;","'":"&#39;","\"":"&quot;"}[char]));
     const $ = (selector) => document.querySelector(selector);
     const $$ = (selector) => [...document.querySelectorAll(selector)];
-
+    const I18N = {
+      zh: {
+        title: "控制台", overview: "概览", peers: "Peers", networks: "Networks", diagnostics: "诊断",
+        running: "运行中", stopped: "已停止", checking: "读取中", checkFailed: "检查失败", unknown: "未知",
+        statusUnavailable: "无法连接到 NetBird daemon", daemon: "NetBird daemon", connected: "Connected", disconnected: "Disconnected",
+        noPeers: "暂无 Peers，或 daemon 尚未连接。", noNetworks: "暂无 Networks / Routes", noForwarding: "没有转发规则",
+        refresh: "刷新", refreshRuntime: "刷新运行时", restart: "重启", start: "启动", stop: "停止", startDaemon: "启动 daemon", stopDaemon: "停止 daemon", restartDaemon: "重启 daemon", refreshRules: "刷新规则", refreshRoute: "刷新路由", viewVersion: "查看版本",
+        connection: "连接详情", serviceOps: "服务操作", noLoginChange: "不会修改登录配置", peerConnections: "对端连接", networksRoutes: "Networks / Routes", forwarding: "转发规则", health: "健康检查", versionState: "版本与状态存储", structured: "结构化摘要", readVersion: "读取版本", readState: "读取状态项", readProfiles: "读取 Profiles", switchProfile: "切换 Profile", profilePlaceholder: "Profile 名称", selectProfile: "切换 Profile", noDiagnostic: "选择一个诊断项", noState: "没有状态存储项", noProfiles: "没有 Profiles", versionUnavailable: "版本不可用", check: "检查", passed: "通过", notChecked: "未检查", routeHint: "启用单个 Network 会追加到当前选择，不会清除其他已选路由。显示 0.0.0.0/0 或 ::/0 时，它是管理端提供的出口路由；出口节点本身仍由管理端配置。", acceptAll: "接受全部", deselectAll: "停用全部", selected: "已启用", notSelected: "未启用", enable: "启用", disable: "停用", noData: "暂无数据", updated: "已更新", operationDone: "操作已完成", networkUpdated: "Network 选择已更新", profileUpdated: "Profile 已切换", language: "语言选择", secondsCooldown: "刚刚更新，5 秒后可再次刷新", confirmStart: "确认启动 NetBird daemon？", confirmStop: "确认停止 NetBird daemon？", confirmRestart: "确认重启 NetBird daemon？", confirmRefresh: "确认刷新 NetBird 运行时规则和证书？", confirmRoute: "确认刷新 Android 路由规则？", confirmDeselectAll: "确认停用全部 Network？", confirmDeselect: "确认停用这个 Network？", confirmProfile: "确认切换 Profile？", invalid: "操作参数无效", connectionLabel: "连接", latencyLabel: "延迟", rxLabel: "RX", txLabel: "TX", fqdnLabel: "FQDN", ipv4Label: "IPv4", ipv6Label: "IPv6", interfaceLabel: "Interface", portLabel: "WireGuard port", daemonVersionLabel: "Daemon version", managementLabel: "Management", signalLabel: "Signal"
+      },
+      en: {
+        title: "Console", overview: "Overview", peers: "Peers", networks: "Networks", diagnostics: "Diagnostics",
+        running: "Running", stopped: "Stopped", checking: "Loading", checkFailed: "Check failed", unknown: "Unknown",
+        statusUnavailable: "NetBird daemon is unavailable", daemon: "NetBird daemon", connected: "Connected", disconnected: "Disconnected",
+        noPeers: "No peers, or the daemon is not connected.", noNetworks: "No networks or routes", noForwarding: "No forwarding rules",
+        refresh: "Refresh", refreshRuntime: "Refresh runtime", restart: "Restart", start: "Start", stop: "Stop", startDaemon: "Start daemon", stopDaemon: "Stop daemon", restartDaemon: "Restart daemon", refreshRules: "Refresh rules", refreshRoute: "Refresh routes", viewVersion: "View version",
+        connection: "Connection details", serviceOps: "Service actions", noLoginChange: "Login settings are unchanged", peerConnections: "Peer connections", networksRoutes: "Networks / Routes", forwarding: "Forwarding rules", health: "Health checks", versionState: "Version and state", structured: "Structured summary", readVersion: "Read version", readState: "Read state", readProfiles: "Read profiles", switchProfile: "Switch profile", profilePlaceholder: "Profile name", selectProfile: "Switch profile", noDiagnostic: "Choose a diagnostic item", noState: "No stored state items", noProfiles: "No profiles", versionUnavailable: "Version unavailable", check: "Check", passed: "Passed", notChecked: "Not checked", routeHint: "Selecting one network appends it to the current selection. 0.0.0.0/0 or ::/0 is an exit route supplied by the management service; the exit peer itself is configured there.", acceptAll: "Accept all", deselectAll: "Disable all", selected: "Selected", notSelected: "Not selected", enable: "Enable", disable: "Disable", noData: "No data", updated: "Updated", operationDone: "Operation completed", networkUpdated: "Network selection updated", profileUpdated: "Profile switched", language: "Language", secondsCooldown: "Updated recently; refresh available in 5 seconds", confirmStart: "Start the NetBird daemon?", confirmStop: "Stop the NetBird daemon?", confirmRestart: "Restart the NetBird daemon?", confirmRefresh: "Refresh NetBird runtime rules and certificates?", confirmRoute: "Refresh Android route rules?", confirmDeselectAll: "Disable all networks?", confirmDeselect: "Disable this network?", confirmProfile: "Switch profile?", invalid: "Invalid operation parameters", connectionLabel: "Connection", latencyLabel: "Latency", rxLabel: "RX", txLabel: "TX", fqdnLabel: "FQDN", ipv4Label: "IPv4", ipv6Label: "IPv6", interfaceLabel: "Interface", portLabel: "WireGuard port", daemonVersionLabel: "Daemon version", managementLabel: "Management", signalLabel: "Signal"
+      }
+    };
+    const savedLanguage = localStorage.getItem("netbird.language");
+    const systemLanguage = String(navigator.language || "").toLowerCase();
+    let language = savedLanguage || (systemLanguage.startsWith("en") ? "en" : "zh");
+    function t(key) { return I18N[language][key] || I18N.zh[key] || key; }
+    const STATIC_TEXT = {
+      "控制台": "title", "概览": "overview", "诊断": "diagnostics", "刷新运行时": "refreshRuntime", "重启": "restart", "启动": "start", "停止": "stop", "启动 daemon": "startDaemon", "停止 daemon": "stopDaemon", "重启 daemon": "restartDaemon", "刷新规则": "refreshRules", "刷新路由": "refreshRoute", "查看版本": "viewVersion", "刷新": "refresh", "连接详情": "connection", "服务操作": "serviceOps", "不会修改登录配置": "noLoginChange", "对端连接": "peerConnections", "Networks / Routes": "networksRoutes", "路由选择": "networksRoutes", "转发规则": "forwarding", "健康检查": "health", "版本与状态存储": "versionState", "结构化摘要": "structured", "读取版本": "readVersion", "读取状态项": "readState", "读取 Profiles": "readProfiles", "切换 Profile": "selectProfile", "诊断": "diagnostics", "接受全部": "acceptAll", "停用全部": "deselectAll", "读取中...": "checking", "选择一个诊断项": "noDiagnostic", "配置中的敏感字段会隐藏": "noData"
+    };
+    Object.entries(I18N.zh).forEach(([key, value]) => { if (typeof value === "string") STATIC_TEXT[value] = key; });
+    Object.entries(I18N.en).forEach(([key, value]) => { if (typeof value === "string") STATIC_TEXT[value] = key; });
+    function applyLanguage() {
+      document.documentElement.lang = language === "zh" ? "zh-CN" : "en";
+      document.title = `NetBird ${t("title")}`;
+      const selector = $("#language-select");
+      if (selector) selector.value = language;
+      const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+      const nodes = [];
+      while (walker.nextNode()) nodes.push(walker.currentNode);
+      nodes.forEach((node) => {
+        const key = STATIC_TEXT[node.nodeValue.trim()];
+        if (key && node.nodeValue.trim() === node.nodeValue) node.nodeValue = t(key);
+      });
+      $$('[data-confirm-key]').forEach((button) => { button.dataset.confirm = t(button.dataset.confirmKey); });
+      $("#profile-name")?.setAttribute("placeholder", t("profilePlaceholder"));
+    }
     function shellQuote(value) {
       return `'${String(value).replace(/'/g, "'\\''")}'`;
     }
@@ -342,65 +365,52 @@
     }
     function statusState(model, error = false) {
       const stopped = model.daemon === "stopped";
-      $("#daemon-state").textContent = stopped ? "已停止" : error ? "检查失败" : "运行中";
+      $("#daemon-state").textContent = stopped ? t("stopped") : error ? t("checkFailed") : t("running");
       $("#daemon-dot").className = `dot ${stopped ? "stopped" : error ? "error" : "running"}`;
-      $("#daemon-meta").textContent = model.fqdn !== "-" ? model.fqdn : (error ? "无法连接到 NetBird daemon" : "NetBird daemon");
+      $("#daemon-meta").textContent = model.fqdn !== "-" ? model.fqdn : (error ? t("statusUnavailable") : t("daemon"));
       $("#metric-ip").textContent = model.ip;
       $("#metric-peers").textContent = model.total !== "-" ? `${model.connected}/${model.total}` : String(model.peers.length || "-");
       $("#metric-management").textContent = model.management;
       $("#metric-signal").textContent = model.signal;
       $("#status-updated").textContent = new Date().toLocaleTimeString();
       const detail = [
-        ["FQDN", model.fqdn], ["IPv4", model.ip], ["IPv6", model.ipv6],
-        ["Interface", model.interfaceType], ["WireGuard port", model.port], ["Daemon version", model.version],
-        ["Management", model.management], ["Signal", model.signal]
+        [t("fqdnLabel"), model.fqdn], [t("ipv4Label"), model.ip], [t("ipv6Label"), model.ipv6],
+        [t("interfaceLabel"), model.interfaceType], [t("portLabel"), model.port], [t("daemonVersionLabel"), model.version],
+        [t("managementLabel"), model.management], [t("signalLabel"), model.signal]
       ];
       $("#connection-details").innerHTML = detail.map(([label, value]) => `<div class="state-item"><dt>${esc(label)}</dt><dd>${esc(value)}</dd></div>`).join("");
     }
     function renderPeers(model) {
       const list = $("#peer-list");
-      if (!model.peers.length) { list.innerHTML = '<div class="empty">暂无 Peers，或 daemon 尚未连接。</div>'; return; }
+      if (!model.peers.length) { list.innerHTML = `<div class="empty">${esc(t("noPeers"))}</div>`; return; }
       list.innerHTML = model.peers.map((peer) => {
         const state = firstValue(peer, ["status", "state"]);
         const type = firstValue(peer, ["connectionType", "type"]);
         const ip = firstValue(peer, ["netbirdIp", "netbirdIP"]);
         const latency = firstValue(peer, ["latency", "latencyMs"]);
-        const rx = firstValue(peer, ["transferReceived", "rx"]);
-        const tx = firstValue(peer, ["transferSent", "tx"]);
+        const rx = formatBytes(firstValue(peer, ["transferReceived", "rx"]));
+        const tx = formatBytes(firstValue(peer, ["transferSent", "tx"]));
         const badge = String(state).toLowerCase().includes("connected") ? "ok" : String(state).toLowerCase().includes("idle") ? "warn" : "";
-        return `<article class="peer"><div class="peer-top"><div><div class="peer-name">${esc(firstValue(peer, ["fqdn", "name"]))}</div><div class="peer-sub">${esc(ip)}</div></div><span class="pill ${badge}">${esc(state)}</span></div><div class="peer-meta"><span>连接：${esc(type)}</span><span>延迟：${esc(latency)}</span><span>RX：${esc(rx)}</span><span>TX：${esc(tx)}</span></div></article>`;
+        return `<article class="peer"><div class="peer-top"><div><div class="peer-name">${esc(firstValue(peer, ["fqdn", "name"]))}</div><div class="peer-sub">${esc(ip)}</div></div><span class="pill ${badge}">${esc(state)}</span></div><div class="peer-meta"><span>${esc(t("connectionLabel"))}: ${esc(type)}</span><span>${esc(t("latencyLabel"))}: ${esc(latency)}</span><span>${esc(t("rxLabel"))}: ${esc(rx)}</span><span>${esc(t("txLabel"))}: ${esc(tx)}</span></div></article>`;
       }).join("");
     }
     function renderNetworks(text) {
       const items = parseNetworks(text);
       const list = $("#network-list");
-      if (!items.length) { list.innerHTML = `<div class="empty">${esc(text || "暂无 Networks / Routes")}</div>`; return; }
+      if (!items.length) { list.innerHTML = `<div class="empty">${esc(text || t("noNetworks"))}</div>`; return; }
       list.innerHTML = items.map((item) => {
         const selected = /^selected$/i.test(String(item.status).trim());
-        return `<article class="network"><div class="network-top"><div><div class="network-name">${esc(item.network)}</div><div class="network-sub">ID ${esc(item.id)}</div></div><div class="network-controls"><span class="pill ${selected ? "ok" : "warn"}">${selected ? "已启用" : "未启用"}</span><button class="button compact ${selected ? "danger" : "primary"}" data-network-action="${selected ? "deselect" : "append"}" data-network-id="${esc(item.id)}">${selected ? "停用" : "启用"}</button></div></div></article>`;
+        const route = item.network !== "-" ? `<div class="network-sub">${esc(item.network)}</div>` : "";
+        const domains = item.domains !== "-" ? `<div class="network-sub">Domains: ${esc(item.domains)}</div>` : "";
+        const resolved = item.resolvedIps !== "-" ? `<div class="network-sub">Resolved IPs: ${esc(item.resolvedIps)}</div>` : "";
+        return `<article class="network"><div class="network-top"><div><div class="network-name">${esc(item.id)}</div>${route}${domains}${resolved}</div><div class="network-controls"><span class="pill ${selected ? "ok" : "warn"}">${selected ? esc(t("selected")) : esc(t("notSelected"))}</span><button class="button compact ${selected ? "danger" : "primary"}" data-network-action="${selected ? "deselect" : "append"}" data-network-id="${esc(item.id)}">${selected ? esc(t("disable")) : esc(t("enable"))}</button></div></div></article>`;
       }).join("");
       $$('[data-network-action]').forEach((button) => button.addEventListener("click", () => changeNetwork(button.dataset.networkAction, button.dataset.networkId)));
     }
-    function renderLines(target, text, emptyText = "暂无数据") {
+    function renderLines(target, text, emptyText = t("noData")) {
       const lines = text.split(/\r?\n/).map((line) => line.trim()).filter(Boolean).filter((line) => !/^[-=]+$/.test(line));
       const unavailable = lines.length === 1 && /no .* available/i.test(lines[0]);
       $(target).innerHTML = lines.length && !unavailable ? lines.map((line) => `<div class="simple-item"><div class="simple-top"><span>${esc(line.replace(/^[-*]\s*/, ""))}</span></div></div>`).join("") : `<div class="empty">${esc(emptyText)}</div>`;
-    }
-    function renderConfig(data) {
-      const rows = [];
-      const sensitive = /key|token|secret|password|private|credential/i;
-      function walk(value, path = "") {
-        if (rows.length >= 18 || value === null || value === undefined) return;
-        if (typeof value !== "object") {
-          if (!sensitive.test(path)) rows.push([path || "value", String(value)]);
-          return;
-        }
-        Object.entries(value).forEach(([key, child]) => {
-          if (!sensitive.test(key)) walk(child, path ? `${path}.${key}` : key);
-        });
-      }
-      walk(data);
-      $("#config-list").innerHTML = rows.length ? rows.map(([key, value]) => `<div class="simple-item"><div class="simple-top"><strong>${esc(key)}</strong><span class="small">${esc(value)}</span></div></div>`).join("") : '<div class="empty">没有可显示的非敏感配置。</div>';
     }
     async function execute(command, options = {}) {
       const result = await exec(command);
@@ -413,28 +423,48 @@
       const model = data ? statusModel(data) : { daemon: result.errno === 1 ? "stopped" : "error", peers: [], fqdn: "-", ip: "-", ipv6: "-", management: "-", signal: "-", interfaceType: "-", port: "-", version: "-", total: "-", connected: "-" };
       statusState(model, result.errno !== 0 && model.daemon !== "stopped");
       renderPeers(model);
-      if (result.errno !== 0 && model.daemon !== "stopped") showNotice(result.stderr || "无法读取状态");
+      if (result.errno !== 0 && model.daemon !== "stopped") showNotice(result.stderr || t("statusUnavailable"));
       return result;
     }
-    async function load(action) {
-      setBusy(true);
+    function refreshStateId(action) {
+      return action === "status" ? "#peers-refresh-state" : action === "networks" ? "#networks-refresh-state" : null;
+    }
+    function setRefreshState(action, message) {
+      const target = refreshStateId(action);
+      if (target) $(target).textContent = message;
+    }
+    async function load(action, options = {}) {
+      const now = Date.now();
+      const previous = lastLoaded.get(action) || 0;
+      if (!options.force && now - previous < LOAD_COOLDOWN) {
+        setRefreshState(action, t("secondsCooldown"));
+        return false;
+      }
+      lastLoaded.set(action, now);
+      setRefreshState(action, t("checking"));
       try {
-        const result = await execute(serviceCommand(COMMANDS[action]));
-        if (action === "status") await loadStatus();
-        else if (action === "networks") renderNetworks(result.stdout);
-        else if (action === "forwarding") renderLines("#forwarding-list", result.stdout, "没有转发规则");
-        else if (action === "state") renderLines("#diagnostic-list", result.stdout, "没有状态存储项");
-        else if (action === "profile-list") renderLines("#diagnostic-list", result.stdout, "没有 Profiles");
-        else if (action === "config") renderConfig(parseJson(result) || {});
-        else if (action === "version") renderLines("#diagnostic-list", result.stdout, "版本不可用");
-        showNotice("已更新", "success");
-      } catch (error) { showNotice(error.message); }
-      finally { setBusy(false); }
+        if (action === "status") {
+          await loadStatus();
+        } else {
+          const result = await execute(serviceCommand(COMMANDS[action]));
+          if (action === "networks") renderNetworks(result.stdout);
+          else if (action === "forwarding") renderLines("#forwarding-list", result.stdout, t("noForwarding"));
+          else if (action === "state") renderLines("#diagnostic-list", result.stdout, t("noState"));
+          else if (action === "profile-list") renderLines("#diagnostic-list", result.stdout, t("noProfiles"));
+          else if (action === "version") renderLines("#diagnostic-list", result.stdout, t("versionUnavailable"));
+        }
+        setRefreshState(action, t("updated"));
+        return true;
+      } catch (error) {
+        setRefreshState(action, error.message);
+        showNotice(error.message);
+        return false;
+      }
     }
     async function serviceAction(action, confirmText) {
       if (confirmText && !window.confirm(confirmText)) return;
       setBusy(true);
-      try { await execute(serviceCommand(action)); await loadStatus(); showNotice("操作已完成", "success"); }
+      try { await execute(serviceCommand(action)); await load("status", { force: true }); showNotice(t("operationDone"), "success"); }
       catch (error) { showNotice(error.message); }
       finally { setBusy(false); }
     }
@@ -442,10 +472,10 @@
       if (!id) return;
       const isAll = id === "all";
       const action = mode === "append" ? "webui networks-append" : mode === "select" ? "webui networks-select" : "webui networks-deselect";
-      const label = mode === "append" ? "启用" : mode === "select" ? "接受全部" : "停用";
-      if (!window.confirm(`${label}${isAll ? " Network" : ` Network ${id}`}？`)) return;
+      const label = mode === "append" ? t("enable") : mode === "select" ? t("acceptAll") : t("disable");
+      if (mode === "deselect" && !window.confirm(`${label}${isAll ? " Network" : ` Network ${id}`}？`)) return;
       setBusy(true);
-      try { await execute(serviceCommand(action, [id])); await load("networks"); showNotice("Network 选择已更新", "success"); }
+      try { await execute(serviceCommand(action, [id])); await load("networks", { force: true }); showNotice(t("networkUpdated"), "success"); }
       catch (error) { showNotice(error.message); }
       finally { setBusy(false); }
     }
@@ -455,35 +485,17 @@
         const result = await execute(serviceCommand("webui health", [check]), { allowFailure: true });
         const data = parseJson(result) || { ok: false };
         const el = $(`#health-${check}`);
-        el.textContent = data.ok ? "通过" : `失败（${data.exit ?? result.errno}）`;
+        el.textContent = data.ok ? t("passed") : `${t("checkFailed")} (${data.exit ?? result.errno})`;
         el.className = `health-result ${data.ok ? "" : "pill bad"}`;
       } catch (error) { $(`#health-${check}`).textContent = error.message; }
       finally { setBusy(false); }
     }
     async function selectProfile() {
       const profile = $("#profile-name").value.trim();
-      if (!profile || !window.confirm(`切换到 Profile ${profile}？`)) return;
+      if (!profile || !window.confirm(`${t("confirmProfile")} ${profile}`)) return;
       setBusy(true);
-      try { await execute(serviceCommand("webui profile-select", [profile])); await loadStatus(); showNotice("Profile 已切换", "success"); }
+      try { await execute(serviceCommand("webui profile-select", [profile])); await load("status", { force: true }); showNotice(t("profileUpdated"), "success"); }
       catch (error) { showNotice(error.message); }
-      finally { setBusy(false); }
-    }
-    async function debugAction(action) {
-      const button = document.querySelector(`[data-debug="${action}"]`);
-      if (button.dataset.confirm && !window.confirm(button.dataset.confirm)) return;
-      let command = `webui ${action}`;
-      let args = [];
-      if (action === "capture") args = [$("#capture-duration").value];
-      if (action === "trace") args = [$("#trace-direction").value, $("#trace-source").value, $("#trace-destination").value, $("#trace-protocol").value];
-      setBusy(true);
-      try {
-        const result = await execute(serviceCommand(command, args));
-        const text = result.stdout.trim();
-        let content = text;
-        try { const data = JSON.parse(text); content = data.file ? `已生成：${data.file}` : "诊断操作已完成"; } catch { content = action === "bundle" ? "Debug Bundle 已生成" : text || "操作已完成"; }
-        $("#debug-result").innerHTML = `<div class="simple-item"><div class="simple-top"><strong>${esc(action)}</strong><span class="small">${esc(content)}</span></div></div>`;
-        showNotice("诊断操作已完成", "success");
-      } catch (error) { showNotice(error.message); }
       finally { setBusy(false); }
     }
 
@@ -491,16 +503,28 @@
       $$('[data-tab]').forEach((item) => item.classList.toggle("active", item === tab));
       $$('[data-view]').forEach((view) => view.classList.toggle("active", view.dataset.view === tab.dataset.tab));
       if (tab.dataset.tab === "networks") { load("networks"); load("forwarding"); }
-      if (tab.dataset.tab === "peers") loadStatus();
+      if (tab.dataset.tab === "peers") load("status");
     }));
     $$('[data-service]').forEach((button) => button.addEventListener("click", () => serviceAction(button.dataset.service, button.dataset.confirm)));
     $$('[data-load]').forEach((button) => button.addEventListener("click", () => load(button.dataset.load)));
     $$('[data-health]').forEach((button) => button.addEventListener("click", () => healthCheck(button.dataset.health)));
-    $$('[data-debug]').forEach((button) => button.addEventListener("click", () => debugAction(button.dataset.debug)));
     $("[data-profile-select]").addEventListener("click", selectProfile);
     $$('[data-network-all]').forEach((button) => button.addEventListener("click", () => changeNetwork(button.dataset.networkAll === "select" ? "select" : "deselect", "all")));
 
-    loadStatus();
+    applyLanguage();
+    $("#language-select").addEventListener("change", async (event) => {
+      language = event.target.value;
+      localStorage.setItem("netbird.language", language);
+      applyLanguage();
+      const activeView = $(".view.active")?.dataset.view;
+      if (activeView === "networks") {
+        await load("networks", { force: true });
+        await load("forwarding", { force: true });
+      } else if (activeView === "peers" || activeView === "overview") {
+        await load("status", { force: true });
+      }
+    });
+    load("status", { force: true });
   </script>
 </body>
 </html>

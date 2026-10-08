@@ -541,33 +541,6 @@ webui_network_change() {
   return "$network_rc"
 }
 
-webui_capture() {
-  capture_seconds="${1:-}"
-  case "$capture_seconds" in
-    1|[2-9]|[1-2][0-9]|30) ;;
-    *) echo "capture duration must be 1-30 seconds" >&2; return 2 ;;
-  esac
-  capture_file="$NB_RUN_DIR/webui-capture-$(date '+%Y%m%d-%H%M%S').pcap"
-  webui_client debug capture --duration "${capture_seconds}s" --output "$capture_file"
-  capture_rc="$?"
-  if [ "$capture_rc" -eq 0 ]; then
-    printf '{"file":"%s","duration":%s,"ok":true}\n' "$capture_file" "$capture_seconds"
-  fi
-  return "$capture_rc"
-}
-
-webui_trace() {
-  trace_direction="${1:-}"
-  trace_source="${2:-}"
-  trace_destination="${3:-}"
-  trace_protocol="${4:-tcp}"
-  case "$trace_direction" in in|out) ;; *) echo "trace direction must be in or out" >&2; return 2 ;; esac
-  webui_value "$trace_source" || { echo "invalid trace source" >&2; return 2; }
-  webui_value "$trace_destination" || { echo "invalid trace destination" >&2; return 2; }
-  case "$trace_protocol" in tcp|udp|icmp) ;; *) echo "trace protocol must be tcp, udp, or icmp" >&2; return 2 ;; esac
-  webui_client debug trace "$trace_direction" "$trace_source" "$trace_destination" --protocol "$trace_protocol"
-}
-
 webui_profile_select() {
   profile_name="${1:-}"
   webui_value "$profile_name" || { echo "invalid profile name" >&2; return 2; }
@@ -594,7 +567,7 @@ up_cmd() {
 usage() {
   echo "usage: netbird.service {start|stop|restart|status|up|down|login|log|refresh|route|peers|version|webui}"
   echo "  log follows the client log; use log --once for the latest 200 lines."
-  echo "  webui actions: status health version networks networks-select networks-append networks-deselect forwarding state config profile-list profile-select bundle capture trace"
+  echo "  webui actions: status health version networks networks-select networks-append networks-deselect forwarding state profile-list profile-select"
   echo "  up always adds --disable-dns before your extra flags."
   echo "  peers shows per-peer connection type (P2P/Relayed), latency and traffic."
   echo "  Set NB_DISABLE_IPV6=true and/or NB_DISABLE_FIREWALL=true to append those on up."
@@ -724,10 +697,6 @@ case "${1:-}" in
         webui_client state list
         exit "$?"
         ;;
-      config)
-        webui_client debug config
-        exit "$?"
-        ;;
       profile-list)
         webui_client profile list
         exit "$?"
@@ -737,22 +706,8 @@ case "${1:-}" in
         webui_profile_select "$@"
         exit "$?"
         ;;
-      bundle)
-        webui_client debug bundle --system-info --log-file-count 1
-        exit "$?"
-        ;;
-      capture)
-        shift
-        webui_capture "$@"
-        exit "$?"
-        ;;
-      trace)
-        shift
-        webui_trace "$@"
-        exit "$?"
-        ;;
       *)
-        echo "usage: netbird.service webui {status|health|version|networks|networks-select|networks-append|networks-deselect|forwarding|state|config|profile-list|profile-select|bundle|capture|trace}" >&2
+        echo "usage: netbird.service webui {status|health|version|networks|networks-select|networks-append|networks-deselect|forwarding|state|profile-list|profile-select}" >&2
         exit 2
         ;;
     esac

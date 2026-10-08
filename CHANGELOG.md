@@ -10,8 +10,7 @@
 
 - Reworked the KernelSU WebUI into a mobile-first control panel with structured status, peer, network, forwarding, health, profile, state, version, and configuration views.
 - Removed the raw log/output panel and replaced command output with parsed cards, lists, badges, empty states, and actionable error messages.
-- Added fixed WebUI service actions for Network/Routes selection, health checks, configuration inspection, profiles, local debug bundles, bounded packet capture, and validated firewall trace.
-- Kept WebUI commands allowlisted and parameter-validated; debug actions require confirmation, packet capture is limited to 1-30 seconds, and bundles are never uploaded.
+- Added fixed WebUI service actions for Network/Routes selection, health checks, profiles, and stored-state inspection.
 - Corrected nested NetBird status JSON parsing for daemon, management, signal, and peer counts; all start controls now require confirmation.
 - Fixed Network/Route IDs that begin with a dot, such as `.nb.test`, being rejected when deselecting a route.
 
