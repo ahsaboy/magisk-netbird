@@ -185,7 +185,7 @@
           </div>
         </div>
         <div class="section-actions">
-          <button class="button primary" data-service="start">启动</button>
+          <button class="button primary" data-service="start" data-confirm="确认启动 NetBird daemon？">启动</button>
           <button class="button danger" data-service="stop" data-confirm="确认停止 NetBird daemon？">停止</button>
         </div>
       </div>
@@ -214,7 +214,7 @@
       <div class="panel">
         <div class="panel-head"><h2>服务操作</h2><span class="small">不会修改登录配置</span></div>
         <div class="actions">
-          <button class="button primary" data-service="start">启动 daemon</button>
+          <button class="button primary" data-service="start" data-confirm="确认启动 NetBird daemon？">启动 daemon</button>
           <button class="button danger" data-service="stop" data-confirm="确认停止 NetBird daemon？">停止 daemon</button>
           <button class="button" data-service="restart" data-confirm="确认重启 NetBird daemon？">重启 daemon</button>
           <button class="button" data-service="refresh">刷新规则</button>
@@ -342,30 +342,51 @@
       }
       return "-";
     }
+    function connectionValue(value) {
+      if (value && typeof value === "object") {
+        if (typeof value.connected === "boolean") return value.connected ? "Connected" : "Disconnected";
+        return firstValue(value, ["state", "status", "value"]);
+      }
+      if (typeof value === "boolean") return value ? "Connected" : "Disconnected";
+      return value ?? "-";
+    }
+    function daemonValue(data) {
+      const value = firstValue(data, ["daemonStatus", "daemonState", "daemon"]);
+      const normalized = String(value && typeof value === "object" ? firstValue(value, ["state", "status", "value"]) : value).toLowerCase();
+      if (["stopped", "disconnected", "offline", "down"].some((item) => normalized.includes(item))) return "stopped";
+      if (["connected", "running", "ready", "started", "online"].some((item) => normalized.includes(item))) return "running";
+      if (value === true) return "running";
+      if (value === false || value === "-") return "stopped";
+      return "error";
+    }
     function collectPeers(value, output = [], seen = new Set()) {
       if (!value || typeof value !== "object" || seen.has(value)) return output;
       seen.add(value);
       if (Array.isArray(value)) value.forEach((item) => collectPeers(item, output, seen));
       else {
-        if (value.fqdn || (value.netbirdIp && value.status)) output.push(value);
+        if ((value.status || value.state) && (value.fqdn || value.netbirdIp)) output.push(value);
         Object.values(value).forEach((item) => collectPeers(item, output, seen));
       }
       return output;
     }
     function statusModel(data) {
       const peers = collectPeers(data);
+      const peerSummary = data?.peers && !Array.isArray(data.peers) ? data.peers : {};
+      const total = firstValue(peerSummary, ["total", "count"]);
+      const connected = firstValue(peerSummary, ["connected", "connectedCount"]);
+      const fallbackConnected = peers.filter((peer) => String(firstValue(peer, ["status", "state"])).toLowerCase().includes("connected")).length;
       return {
-        daemon: data?.daemon || "running",
+        daemon: daemonValue(data),
         fqdn: firstValue(data, ["fqdn", "hostname"]),
         ip: firstValue(data, ["netbirdIp", "netbirdIPv4", "netbirdIpv4"]),
-        ipv6: firstValue(data, ["netbirdIPv6", "netbirdIpv6"]),
-        management: firstValue(data, ["managementState", "management"]),
-        signal: firstValue(data, ["signalState", "signal"]),
+        ipv6: firstValue(data, ["netbirdIpV6", "netbirdIPv6", "netbirdIpv6"]),
+        management: connectionValue(firstValue(data, ["management", "managementState"])),
+        signal: connectionValue(firstValue(data, ["signal", "signalState"])),
         interfaceType: firstValue(data, ["interfaceType", "interface"]),
         port: firstValue(data, ["wireguardPort", "wireguard_port"]),
         version: firstValue(data, ["daemonVersion", "version"]),
-        total: firstValue(data, ["total", "peersCount"]),
-        connected: firstValue(data, ["connected", "connectedPeers"]),
+        total: total !== "-" ? total : (peers.length || "-"),
+        connected: connected !== "-" ? connected : (peers.length ? fallbackConnected : "-"),
         peers
       };
     }
