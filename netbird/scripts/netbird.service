@@ -460,8 +460,9 @@ webui_client() {
 
 webui_network_id() {
   case "${1:-}" in
-    all|[A-Za-z0-9]|[A-Za-z0-9][A-Za-z0-9_.:-]*) return 0 ;;
-    *) return 1 ;;
+    all) return 0 ;;
+    ''|*[!A-Za-z0-9_.:-]*) return 1 ;;
+    *) return 0 ;;
   esac
 }
 

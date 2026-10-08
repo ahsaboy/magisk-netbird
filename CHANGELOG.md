@@ -7,6 +7,7 @@
 - Added fixed WebUI service actions for Network/Routes selection, health checks, configuration inspection, profiles, local debug bundles, bounded packet capture, and validated firewall trace.
 - Kept WebUI commands allowlisted and parameter-validated; debug actions require confirmation, packet capture is limited to 1-30 seconds, and bundles are never uploaded.
 - Corrected nested NetBird status JSON parsing for daemon, management, signal, and peer counts; all start controls now require confirmation.
+- Fixed Network/Route IDs that begin with a dot, such as `.nb.test`, being rejected when deselecting a route.
 
 ## v1.4.2 — NetBird v0.80.0
 
