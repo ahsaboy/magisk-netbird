@@ -22,5 +22,7 @@ assert.deepEqual(networks, [
   { id: "K70", network: "0.0.0.0/0, ::/0", status: "Not Selected" },
   { id: "N10", network: "0.0.0.0/0, ::/0", status: "Not Selected" }
 ]);
+assert.equal(/^selected$/i.test(networks[0].status.trim()), false);
+assert.equal(/^selected$/i.test("Selected"), true);
 
 console.log("view-model fixtures: passed");

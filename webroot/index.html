@@ -373,7 +373,7 @@
       const list = $("#network-list");
       if (!items.length) { list.innerHTML = `<div class="empty">${esc(text || "暂无 Networks / Routes")}</div>`; return; }
       list.innerHTML = items.map((item) => {
-        const selected = /selected/i.test(item.status);
+        const selected = /^selected$/i.test(String(item.status).trim());
         return `<article class="network"><div class="network-top"><div><div class="network-name">${esc(item.network)}</div><div class="network-sub">ID ${esc(item.id)}</div></div><div class="network-controls"><span class="pill ${selected ? "ok" : "warn"}">${selected ? "已启用" : "未启用"}</span><button class="button compact ${selected ? "danger" : "primary"}" data-network-action="${selected ? "deselect" : "append"}" data-network-id="${esc(item.id)}">${selected ? "停用" : "启用"}</button></div></div></article>`;
       }).join("");
       $$('[data-network-action]').forEach((button) => button.addEventListener("click", () => changeNetwork(button.dataset.networkAction, button.dataset.networkId)));
