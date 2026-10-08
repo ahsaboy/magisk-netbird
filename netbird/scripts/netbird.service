@@ -459,17 +459,34 @@ webui_client() {
 }
 
 webui_network_id() {
-  case "${1:-}" in
-    all) return 0 ;;
-    ''|*[!A-Za-z0-9_.:-]*) return 1 ;;
-    *) return 0 ;;
-  esac
+  webui_network="$1"
+  [ -n "$webui_network" ] || return 1
+  [ "$webui_network" != "--" ] || return 1
+  case "$webui_network" in *[[:space:]]*) return 1 ;; esac
+  return 0
 }
 
 webui_network_ids() {
   [ "$#" -gt 0 ] || return 1
+  webui_network_needs_lookup=0
   for webui_network in "$@"; do
+    if [ "$webui_network" = "all" ]; then
+      continue
+    fi
     webui_network_id "$webui_network" || return 1
+    webui_network_needs_lookup=1
+  done
+  [ "$webui_network_needs_lookup" -eq 1 ] || return 0
+
+  webui_network_list="$(webui_client networks list 2>/dev/null)" || return 1
+  for webui_network in "$@"; do
+    [ "$webui_network" = "all" ] && continue
+    if ! printf '%s\n' "$webui_network_list" |
+      awk -v wanted="$webui_network" \
+        '$1 == "-" && $2 == "ID:" && $3 == wanted { found = 1 }
+         END { exit !found }'; then
+      return 1
+    fi
   done
 }
 

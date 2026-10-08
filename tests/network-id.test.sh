@@ -1,22 +1,35 @@
 #!/system/bin/sh
 
-# Network IDs can start with a dot, for example `.nb.test`.
-# Keep the accepted alphabet narrow enough that IDs cannot inject shell syntax.
+network_list='Available Networks:
+
+  - ID: .nb.test
+    Network: .nb.test
+    Status: Selected
+
+  - ID: network-route-srvs-site
+    Network: 192.168.100.0/24
+    Status: Selected'
+
 network_id_valid() {
-  case "${1:-}" in
-    all) return 0 ;;
-    ''|*[!A-Za-z0-9_.:-]*) return 1 ;;
-    *) return 0 ;;
-  esac
+  network_id="$1"
+  [ -n "$network_id" ] || return 1
+  [ "$network_id" != "--" ] || return 1
+  case "$network_id" in *[[:space:]]*) return 1 ;; esac
+  return 0
 }
 
-network_id_valid all
-network_id_valid .nb.test
-network_id_valid network-route-srvs-site
-network_id_valid 'aws-eu-central-1-vpc'
-! network_id_valid 'route/id'
-! network_id_valid 'route id'
-! network_id_valid 'route;id'
-! network_id_valid ''
+network_id_exists() {
+  network_id_valid "$1" || return 1
+  printf '%s\n' "$network_list" |
+    awk -v wanted="$1" '$1 == "-" && $2 == "ID:" && $3 == wanted { found = 1 } END { exit !found }'
+}
+
+network_id_exists .nb.test
+network_id_exists network-route-srvs-site
+! network_id_exists route/id
+! network_id_exists 'route id'
+! network_id_exists unknown-route
+! network_id_exists --
+! network_id_exists ''
 
 echo "network ID validation: passed"
