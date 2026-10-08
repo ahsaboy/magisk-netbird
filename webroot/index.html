@@ -170,7 +170,7 @@
         <h1>控制台</h1>
       </div>
       <div class="top-actions">
-        <button class="button compact" data-service="refresh">刷新运行时</button>
+        <button class="button compact" data-service="refresh" data-confirm="确认刷新 NetBird 运行时规则和证书？">刷新运行时</button>
         <button class="button compact" data-service="restart" data-confirm="确认重启 NetBird daemon？">重启</button>
       </div>
     </header>
@@ -217,8 +217,8 @@
           <button class="button primary" data-service="start" data-confirm="确认启动 NetBird daemon？">启动 daemon</button>
           <button class="button danger" data-service="stop" data-confirm="确认停止 NetBird daemon？">停止 daemon</button>
           <button class="button" data-service="restart" data-confirm="确认重启 NetBird daemon？">重启 daemon</button>
-          <button class="button" data-service="refresh">刷新规则</button>
-          <button class="button" data-service="route">刷新路由</button>
+          <button class="button" data-service="refresh" data-confirm="确认刷新 NetBird 运行时规则和证书？">刷新规则</button>
+          <button class="button" data-service="route" data-confirm="确认刷新 Android 路由规则？">刷新路由</button>
           <button class="button" data-load="version">查看版本</button>
         </div>
       </div>
@@ -297,6 +297,7 @@
 
   <script type="module">
     import { exec, toast } from "./kernelsu.js";
+    import { firstValue, statusModel, parseNetworks } from "./view-model.mjs";
 
     const SERVICE = "/data/adb/netbird/scripts/netbird.service";
     const COMMANDS = Object.freeze({
@@ -336,60 +337,6 @@
     function parseJson(result) {
       try { return JSON.parse(result.stdout); } catch { return null; }
     }
-    function firstValue(object, keys) {
-      for (const key of keys) {
-        if (object && object[key] !== undefined && object[key] !== null && object[key] !== "") return object[key];
-      }
-      return "-";
-    }
-    function connectionValue(value) {
-      if (value && typeof value === "object") {
-        if (typeof value.connected === "boolean") return value.connected ? "Connected" : "Disconnected";
-        return firstValue(value, ["state", "status", "value"]);
-      }
-      if (typeof value === "boolean") return value ? "Connected" : "Disconnected";
-      return value ?? "-";
-    }
-    function daemonValue(data) {
-      const value = firstValue(data, ["daemonStatus", "daemonState", "daemon"]);
-      const normalized = String(value && typeof value === "object" ? firstValue(value, ["state", "status", "value"]) : value).toLowerCase();
-      if (["stopped", "disconnected", "offline", "down"].some((item) => normalized.includes(item))) return "stopped";
-      if (["connected", "running", "ready", "started", "online"].some((item) => normalized.includes(item))) return "running";
-      if (value === true) return "running";
-      if (value === false || value === "-") return "stopped";
-      return "error";
-    }
-    function collectPeers(value, output = [], seen = new Set()) {
-      if (!value || typeof value !== "object" || seen.has(value)) return output;
-      seen.add(value);
-      if (Array.isArray(value)) value.forEach((item) => collectPeers(item, output, seen));
-      else {
-        if ((value.status || value.state) && (value.fqdn || value.netbirdIp)) output.push(value);
-        Object.values(value).forEach((item) => collectPeers(item, output, seen));
-      }
-      return output;
-    }
-    function statusModel(data) {
-      const peers = collectPeers(data);
-      const peerSummary = data?.peers && !Array.isArray(data.peers) ? data.peers : {};
-      const total = firstValue(peerSummary, ["total", "count"]);
-      const connected = firstValue(peerSummary, ["connected", "connectedCount"]);
-      const fallbackConnected = peers.filter((peer) => String(firstValue(peer, ["status", "state"])).toLowerCase().includes("connected")).length;
-      return {
-        daemon: daemonValue(data),
-        fqdn: firstValue(data, ["fqdn", "hostname"]),
-        ip: firstValue(data, ["netbirdIp", "netbirdIPv4", "netbirdIpv4"]),
-        ipv6: firstValue(data, ["netbirdIpV6", "netbirdIPv6", "netbirdIpv6"]),
-        management: connectionValue(firstValue(data, ["management", "managementState"])),
-        signal: connectionValue(firstValue(data, ["signal", "signalState"])),
-        interfaceType: firstValue(data, ["interfaceType", "interface"]),
-        port: firstValue(data, ["wireguardPort", "wireguard_port"]),
-        version: firstValue(data, ["daemonVersion", "version"]),
-        total: total !== "-" ? total : (peers.length || "-"),
-        connected: connected !== "-" ? connected : (peers.length ? fallbackConnected : "-"),
-        peers
-      };
-    }
     function statusState(model, error = false) {
       const stopped = model.daemon === "stopped";
       $("#daemon-state").textContent = stopped ? "已停止" : error ? "检查失败" : "运行中";
@@ -420,15 +367,6 @@
         const badge = String(state).toLowerCase().includes("connected") ? "ok" : String(state).toLowerCase().includes("idle") ? "warn" : "";
         return `<article class="peer"><div class="peer-top"><div><div class="peer-name">${esc(firstValue(peer, ["fqdn", "name"]))}</div><div class="peer-sub">${esc(ip)}</div></div><span class="pill ${badge}">${esc(state)}</span></div><div class="peer-meta"><span>连接：${esc(type)}</span><span>延迟：${esc(latency)}</span><span>RX：${esc(rx)}</span><span>TX：${esc(tx)}</span></div></article>`;
       }).join("");
-    }
-    function parseNetworks(text) {
-      return text.split(/\n\s*-\s*ID:\s*/).slice(1).map((block) => {
-        const lines = block.split(/\r?\n/);
-        const id = lines[0].trim();
-        const network = (block.match(/Network:\s*(.+)/) || [,"-"])[1].trim();
-        const status = (block.match(/Status:\s*(.+)/) || [,"-"])[1].trim();
-        return { id, network, status };
-      }).filter((item) => item.id);
     }
     function renderNetworks(text) {
       const items = parseNetworks(text);

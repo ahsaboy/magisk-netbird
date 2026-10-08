@@ -1,0 +1,25 @@
+{
+  "daemonStatus": "Connected",
+  "fqdn": "phone.example",
+  "netbirdIp": "100.64.0.8",
+  "management": { "connected": true },
+  "signal": { "connected": false },
+  "peers": {
+    "total": 8,
+    "connected": 4,
+    "details": [
+      {
+        "fqdn": "peer-a",
+        "netbirdIp": "100.64.0.9",
+        "status": "Connected",
+        "connectionType": "P2P"
+      },
+      {
+        "fqdn": "peer-b",
+        "netbirdIp": "100.64.0.10",
+        "status": "Idle",
+        "connectionType": "-"
+      }
+    ]
+  }
+}

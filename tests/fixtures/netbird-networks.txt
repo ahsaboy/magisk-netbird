@@ -1,0 +1,9 @@
+Available Networks:
+
+  - ID: K70
+    Network: 0.0.0.0/0, ::/0
+    Status: Not Selected
+
+  - ID: N10
+    Network: 0.0.0.0/0, ::/0
+    Status: Not Selected
