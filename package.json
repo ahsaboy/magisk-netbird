@@ -1,8 +1,0 @@
-{
-  "name": "magisk-netbird-webui-tests",
-  "private": true,
-  "scripts": {
-    "test": "node tests/view-model.test.mjs && sh tests/network-id.test.sh",
-    "test:browser": "sh tests/webui-browser-regression.sh"
-  }
-}

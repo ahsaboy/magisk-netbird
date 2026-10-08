@@ -1,5 +1,11 @@
 # Changelog
 
+## v1.4.5 — NetBird v0.80.0
+
+- Streamlined the mobile WebUI with parsed route domains/resolved IPs, automatic peer traffic units, bilingual controls, quieter visuals, and disabled global overscroll stretch.
+- Added five-second refresh cooldowns when switching Peers and Networks, while keeping immediate view changes and silent data refreshes.
+- Removed Debug actions and the test-only repository directory from the release tree; Network selection controls are integrated into the main Networks card.
+
 ## v1.4.4 — NetBird v0.80.0
 
 - Fixed deselection of Network/Route IDs that begin with a dot, such as `.nb.test`.

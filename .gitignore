@@ -21,3 +21,4 @@ mimocode.md
 
 # Local environment overrides
 /.env
+.pi

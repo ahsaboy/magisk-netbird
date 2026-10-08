@@ -39,16 +39,16 @@ Kitsune and older managers too; the ACTION button needs Magisk v28+.
 ## Cutting a release
 
 ```sh
-# update module.prop and CHANGELOG.md (v1.4.4 / NetBird 0.80.0), commit, then:
-git tag v1.4.4
-git push origin main v1.4.4
+# update module.prop and CHANGELOG.md (v1.4.5 / NetBird 0.80.0), commit, then:
+git tag v1.4.5
+git push origin main v1.4.5
 ```
 
 The `Release` workflow downloads the matching official NetBird release for
 each architecture, verifies sha256 against `checksums.txt`, packages the three
 zips, attaches them to the GitHub Release, and refreshes `update/*.json`,
 `update.json` and the release assets. The stamped display version is
-`<tag>-(<NetBird version>)`, e.g. `v1.4.4-(0.80.0)`; the update check itself
+`<tag>-(<NetBird version>)`, e.g. `v1.4.5-(0.80.0)`; the update check itself
 uses `versionCode`. Add the release entry to `CHANGELOG.md` before tagging;
 the workflow uses that authored section as the GitHub Release body and does
 not modify the changelog.
