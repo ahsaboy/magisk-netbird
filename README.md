@@ -39,16 +39,16 @@ Kitsune and older managers too; the ACTION button needs Magisk v28+.
 ## Cutting a release
 
 ```sh
-# update module.prop and CHANGELOG.md (v1.4.2 / NetBird 0.80.0), commit, then:
-git tag v1.4.2
-git push origin main v1.4.2
+# update module.prop and CHANGELOG.md (v1.4.3 / NetBird 0.80.0), commit, then:
+git tag v1.4.3
+git push origin main v1.4.3
 ```
 
 The `Release` workflow downloads the matching official NetBird release for
 each architecture, verifies sha256 against `checksums.txt`, packages the three
 zips, attaches them to the GitHub Release, and refreshes `update/*.json`,
 `update.json` and the release assets. The stamped display version is
-`<tag>-(<NetBird version>)`, e.g. `v1.4.2-(0.80.0)`; the update check itself
+`<tag>-(<NetBird version>)`, e.g. `v1.4.3-(0.80.0)`; the update check itself
 uses `versionCode`. Add the release entry to `CHANGELOG.md` before tagging;
 the workflow uses that authored section as the GitHub Release body and does
 not modify the changelog.
@@ -115,11 +115,19 @@ continuous log following. Seeing `daemon: stopped` after `stop` is expected and
 does not indicate a failed stop. The same actions can also be invoked directly,
 for example `su -c 'netbird.service peers'`.
 
-KernelSU users can open the module's **WebUI** for an interactive control panel.
-It provides buttons for service control, peer details, bounded logs, version, route
-refresh, and runtime refresh. The WebUI only calls the fixed service actions above;
-it does not accept setup keys or arbitrary shell input. The manager's ACTION button
-remains the short, no-argument refresh-and-status entry point.
+KernelSU users can open the module's **WebUI** for a mobile-first control panel.
+The page parses status JSON into connection cards and peer rows, and provides separate
+views for Peers, Networks/Routes, forwarding rules, health checks, versions, stored
+state items, profiles, and a redacted configuration summary. Network selection uses
+fixed `networks select`/`deselect` actions; selecting one route appends to the current
+selection. A `0.0.0.0/0` or `::/0` entry is an exit route supplied by the management
+service, while the exit peer itself is not selected by this module.
+
+Debug Bundle, packet capture, and firewall trace are controlled actions: the page
+requires confirmation, validates parameters, limits capture to 1-30 seconds, and
+never uploads a bundle or accepts arbitrary shell commands. Raw log output is not
+shown in the WebUI. The manager's ACTION button remains the short, no-argument
+refresh-and-status entry point.
 
 ## Configuration
 

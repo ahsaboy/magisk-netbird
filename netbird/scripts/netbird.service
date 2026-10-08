@@ -451,6 +451,111 @@ client_cmd() {
   )
 }
 
+webui_client() {
+  (
+    unset NB_CONFIG
+    netbird --daemon-addr "$NB_DAEMON_ADDR" "$@"
+  )
+}
+
+webui_network_id() {
+  case "${1:-}" in
+    all|[A-Za-z0-9]|[A-Za-z0-9][A-Za-z0-9_.:-]*) return 0 ;;
+    *) return 1 ;;
+  esac
+}
+
+webui_network_ids() {
+  [ "$#" -gt 0 ] || return 1
+  for webui_network in "$@"; do
+    webui_network_id "$webui_network" || return 1
+  done
+}
+
+webui_value() {
+  case "${1:-}" in
+    ''|*[!A-Za-z0-9:._/-]*) return 1 ;;
+  esac
+}
+
+webui_status() {
+  if ! is_running; then
+    printf '%s\n' '{"daemon":"stopped"}'
+    return 1
+  fi
+  webui_client status --json
+}
+
+webui_health() {
+  health_check="${1:-live}"
+  case "$health_check" in
+    live|ready|startup) ;;
+    *) echo "usage: webui health {live|ready|startup}" >&2; return 2 ;;
+  esac
+  webui_client status --check "$health_check" >/dev/null 2>&1
+  health_rc="$?"
+  if [ "$health_rc" -eq 0 ]; then
+    printf '{"check":"%s","ok":true,"exit":0}\n' "$health_check"
+  else
+    printf '{"check":"%s","ok":false,"exit":%s}\n' "$health_check" "$health_rc"
+  fi
+  return "$health_rc"
+}
+
+webui_network_change() {
+  network_action="$1"
+  shift
+  case "$network_action" in
+    select|select-append|deselect) ;;
+    *) return 2 ;;
+  esac
+  webui_network_ids "$@" || {
+    echo "invalid network identifier" >&2
+    return 2
+  }
+  if [ "$network_action" = "select-append" ]; then
+    webui_client networks select -a "$@"
+  else
+    webui_client networks "$network_action" "$@"
+  fi
+  network_rc="$?"
+  update_module_status
+  return "$network_rc"
+}
+
+webui_capture() {
+  capture_seconds="${1:-}"
+  case "$capture_seconds" in
+    1|[2-9]|[1-2][0-9]|30) ;;
+    *) echo "capture duration must be 1-30 seconds" >&2; return 2 ;;
+  esac
+  capture_file="$NB_RUN_DIR/webui-capture-$(date '+%Y%m%d-%H%M%S').pcap"
+  webui_client debug capture --duration "${capture_seconds}s" --output "$capture_file"
+  capture_rc="$?"
+  if [ "$capture_rc" -eq 0 ]; then
+    printf '{"file":"%s","duration":%s,"ok":true}\n' "$capture_file" "$capture_seconds"
+  fi
+  return "$capture_rc"
+}
+
+webui_trace() {
+  trace_direction="${1:-}"
+  trace_source="${2:-}"
+  trace_destination="${3:-}"
+  trace_protocol="${4:-tcp}"
+  case "$trace_direction" in in|out) ;; *) echo "trace direction must be in or out" >&2; return 2 ;; esac
+  webui_value "$trace_source" || { echo "invalid trace source" >&2; return 2; }
+  webui_value "$trace_destination" || { echo "invalid trace destination" >&2; return 2; }
+  case "$trace_protocol" in tcp|udp|icmp) ;; *) echo "trace protocol must be tcp, udp, or icmp" >&2; return 2 ;; esac
+  webui_client debug trace "$trace_direction" "$trace_source" "$trace_destination" --protocol "$trace_protocol"
+}
+
+webui_profile_select() {
+  profile_name="${1:-}"
+  webui_value "$profile_name" || { echo "invalid profile name" >&2; return 2; }
+  webui_client profile select "$profile_name"
+}
+
 up_cmd() {
   # Opt-in flags (see settings.sh): NB_DISABLE_IPV6=true / NB_DISABLE_FIREWALL=true.
   # Appended before "$@" so an explicit flag on the command line still wins.
@@ -469,8 +574,9 @@ up_cmd() {
 }
 
 usage() {
-  echo "usage: netbird.service {start|stop|restart|status|up|down|login|log|refresh|route|peers|version}"
+  echo "usage: netbird.service {start|stop|restart|status|up|down|login|log|refresh|route|peers|version|webui}"
   echo "  log follows the client log; use log --once for the latest 200 lines."
+  echo "  webui actions: status health version networks networks-select networks-append networks-deselect forwarding state config profile-list profile-select bundle capture trace"
   echo "  up always adds --disable-dns before your extra flags."
   echo "  peers shows per-peer connection type (P2P/Relayed), latency and traffic."
   echo "  Set NB_DISABLE_IPV6=true and/or NB_DISABLE_FIREWALL=true to append those on up."
@@ -556,6 +662,82 @@ case "${1:-}" in
     ;;
   peers)
     exec "$module_status_script" peers
+    ;;
+  webui)
+    shift
+    case "${1:-}" in
+      status)
+        webui_status
+        exit "$?"
+        ;;
+      health)
+        shift
+        webui_health "$@"
+        exit "$?"
+        ;;
+      version)
+        webui_client version
+        exit "$?"
+        ;;
+      networks)
+        webui_client networks list
+        exit "$?"
+        ;;
+      networks-select)
+        shift
+        webui_network_change select "$@"
+        exit "$?"
+        ;;
+      networks-append)
+        shift
+        webui_network_change select-append "$@"
+        exit "$?"
+        ;;
+      networks-deselect)
+        shift
+        webui_network_change deselect "$@"
+        exit "$?"
+        ;;
+      forwarding)
+        webui_client forwarding list
+        exit "$?"
+        ;;
+      state)
+        webui_client state list
+        exit "$?"
+        ;;
+      config)
+        webui_client debug config
+        exit "$?"
+        ;;
+      profile-list)
+        webui_client profile list
+        exit "$?"
+        ;;
+      profile-select)
+        shift
+        webui_profile_select "$@"
+        exit "$?"
+        ;;
+      bundle)
+        webui_client debug bundle --system-info --log-file-count 1
+        exit "$?"
+        ;;
+      capture)
+        shift
+        webui_capture "$@"
+        exit "$?"
+        ;;
+      trace)
+        shift
+        webui_trace "$@"
+        exit "$?"
+        ;;
+      *)
+        echo "usage: netbird.service webui {status|health|version|networks|networks-select|networks-append|networks-deselect|forwarding|state|config|profile-list|profile-select|bundle|capture|trace}" >&2
+        exit 2
+        ;;
+    esac
     ;;
   version)
     client_cmd version

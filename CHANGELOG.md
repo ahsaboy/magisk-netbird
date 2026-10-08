@@ -1,5 +1,12 @@
 # Changelog
 
+## v1.4.3 — NetBird v0.80.0
+
+- Reworked the KernelSU WebUI into a mobile-first control panel with structured status, peer, network, forwarding, health, profile, state, version, and configuration views.
+- Removed the raw log/output panel and replaced command output with parsed cards, lists, badges, empty states, and actionable error messages.
+- Added fixed WebUI service actions for Network/Routes selection, health checks, configuration inspection, profiles, local debug bundles, bounded packet capture, and validated firewall trace.
+- Kept WebUI commands allowlisted and parameter-validated; debug actions require confirmation, packet capture is limited to 1-30 seconds, and bundles are never uploaded.
+
 ## v1.4.2 — NetBird v0.80.0
 
 - Added a KernelSU WebUI control panel with status, start, stop, restart, peers, bounded logs, version, route refresh, and runtime refresh actions.

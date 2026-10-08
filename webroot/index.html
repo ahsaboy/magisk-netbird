@@ -8,33 +8,37 @@
   <style>
     :root {
       color-scheme: dark;
-      --bg: #101418;
-      --panel: #181e24;
-      --panel-strong: #202830;
-      --line: #303a44;
-      --text: #edf2f5;
-      --muted: #a9b4bd;
-      --accent: #63c6bb;
-      --accent-strong: #2a9d91;
-      --warning: #e8b86a;
-      --danger: #e37d72;
-      --shadow: 0 12px 28px rgba(0, 0, 0, .18);
+      --bg: #0f1417;
+      --panel: #171e22;
+      --panel-alt: #20292e;
+      --line: #303b41;
+      --text: #edf3f3;
+      --muted: #9eabad;
+      --accent: #58c4b5;
+      --accent-strong: #218d82;
+      --warning: #e5b566;
+      --danger: #e27c72;
+      --ok-bg: rgba(88, 196, 181, .12);
+      --warn-bg: rgba(229, 181, 102, .12);
+      --danger-bg: rgba(226, 124, 114, .12);
     }
 
     @media (prefers-color-scheme: light) {
       :root {
         color-scheme: light;
-        --bg: #f2f4f3;
-        --panel: #ffffff;
-        --panel-strong: #e9efed;
-        --line: #d6dfdc;
-        --text: #182126;
-        --muted: #5d6b70;
-        --accent: #197d73;
-        --accent-strong: #12645c;
-        --warning: #8a5d13;
-        --danger: #a33d35;
-        --shadow: 0 12px 28px rgba(31, 54, 50, .08);
+        --bg: #f2f5f4;
+        --panel: #fff;
+        --panel-alt: #e9efed;
+        --line: #d5dfdc;
+        --text: #172126;
+        --muted: #607075;
+        --accent: #187e74;
+        --accent-strong: #12695f;
+        --warning: #8a5c11;
+        --danger: #a13e36;
+        --ok-bg: #e8f5f2;
+        --warn-bg: #fff5e2;
+        --danger-bg: #fff0ee;
       }
     }
 
@@ -44,202 +48,250 @@
       min-width: 280px;
       background: var(--bg);
       color: var(--text);
-      font: 15px/1.5 system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      font: 14px/1.45 system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
     }
-
-    main {
-      width: min(760px, 100%);
-      margin: 0 auto;
-      padding: max(20px, env(safe-area-inset-top)) 16px 28px;
-    }
-
-    header {
-      display: flex;
-      align-items: flex-start;
-      justify-content: space-between;
-      gap: 16px;
-      margin-bottom: 18px;
-    }
-
-    h1, h2, p { margin: 0; }
-    h1 { font-size: 24px; line-height: 1.2; letter-spacing: 0; }
-    h2 { font-size: 14px; line-height: 1.3; font-weight: 700; }
-    .eyebrow {
-      margin-bottom: 4px;
-      color: var(--accent);
-      font-size: 12px;
-      font-weight: 700;
-      letter-spacing: 0;
-      text-transform: uppercase;
-    }
+    button, input, select { font: inherit; }
+    button { cursor: pointer; }
+    button:disabled { cursor: wait; opacity: .55; }
+    main { width: min(820px, 100%); margin: 0 auto; padding: max(18px, env(safe-area-inset-top)) 14px 28px; }
+    h1, h2, h3, p { margin: 0; }
+    h1 { font-size: 24px; line-height: 1.15; letter-spacing: 0; }
+    h2 { font-size: 15px; line-height: 1.25; letter-spacing: 0; }
+    h3 { font-size: 14px; letter-spacing: 0; }
+    .eyebrow { margin-bottom: 4px; color: var(--accent); font-size: 11px; font-weight: 750; letter-spacing: 0; text-transform: uppercase; }
     .muted { color: var(--muted); }
+    .small { color: var(--muted); font-size: 12px; }
+    .topbar { display: flex; align-items: flex-start; justify-content: space-between; gap: 14px; margin-bottom: 16px; }
+    .top-actions { display: flex; gap: 7px; }
 
-    .status-panel, .section, .output-panel {
+    .button, .tab {
+      min-height: 40px;
+      padding: 8px 11px;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      background: var(--panel-alt);
+      color: var(--text);
+      font-weight: 650;
+    }
+    .button:hover, .tab:hover { border-color: var(--accent); }
+    .button.primary { border-color: var(--accent-strong); background: var(--accent-strong); color: #fff; }
+    .button.danger { border-color: color-mix(in srgb, var(--danger) 55%, var(--line)); color: var(--danger); }
+    .button.compact { min-height: 32px; padding: 5px 8px; font-size: 12px; }
+    .button:active, .tab:active { transform: translateY(1px); }
+
+    .hero, .panel, .notice {
       border: 1px solid var(--line);
       border-radius: 8px;
       background: var(--panel);
-      box-shadow: var(--shadow);
     }
+    .hero { padding: 15px; margin-bottom: 12px; }
+    .hero-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+    .hero-status { display: flex; align-items: center; gap: 9px; min-width: 0; }
+    .dot { width: 10px; height: 10px; flex: 0 0 auto; border-radius: 50%; background: var(--muted); }
+    .dot.running { background: var(--accent); }
+    .dot.stopped { background: var(--warning); }
+    .dot.error { background: var(--danger); }
+    .hero-state { font-size: 19px; font-weight: 750; }
+    .hero-meta { margin-top: 3px; color: var(--muted); font-size: 12px; overflow-wrap: anywhere; }
+    .metric-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; margin-top: 14px; }
+    .metric { min-width: 0; padding: 9px 10px; border-radius: 6px; background: var(--panel-alt); }
+    .metric-label { color: var(--muted); font-size: 11px; }
+    .metric-value { margin-top: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 700; }
 
-    .status-panel {
-      display: grid;
-      grid-template-columns: 1fr auto;
-      gap: 12px;
-      align-items: center;
-      padding: 16px;
-      margin-bottom: 18px;
-    }
+    .tabs { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; margin-bottom: 12px; }
+    .tab { min-height: 38px; padding: 7px 5px; color: var(--muted); font-size: 12px; }
+    .tab.active { border-color: var(--accent); color: var(--text); background: var(--ok-bg); }
+    .view { display: none; }
+    .view.active { display: block; }
+    .panel { padding: 13px; margin-bottom: 12px; }
+    .panel-head { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; margin-bottom: 11px; }
+    .panel-head .small { text-align: right; }
+    .actions { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+    .section-actions { display: flex; flex-wrap: wrap; gap: 7px; }
 
-    .status-value {
-      margin-top: 4px;
-      font-size: 18px;
-      font-weight: 700;
-    }
+    .state-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+    .state-item { min-width: 0; padding: 10px; border-bottom: 1px solid var(--line); }
+    .state-item:nth-last-child(-n + 2) { border-bottom: 0; }
+    .state-item dt { color: var(--muted); font-size: 11px; }
+    .state-item dd { margin: 2px 0 0; overflow-wrap: anywhere; font-weight: 650; }
 
-    .status-dot {
-      display: inline-block;
-      width: 9px;
-      height: 9px;
-      margin-right: 7px;
-      border-radius: 50%;
-      background: var(--muted);
-      vertical-align: 1px;
-    }
-    .status-dot.running { background: var(--accent); }
-    .status-dot.stopped { background: var(--warning); }
-    .status-dot.error { background: var(--danger); }
+    .peer-list, .network-list, .simple-list { display: grid; gap: 7px; }
+    .peer, .network, .simple-item { min-width: 0; padding: 10px; border: 1px solid var(--line); border-radius: 6px; background: var(--panel-alt); }
+    .peer-top, .network-top, .simple-top { display: flex; justify-content: space-between; gap: 9px; align-items: flex-start; }
+    .peer-name, .network-name { min-width: 0; overflow-wrap: anywhere; font-weight: 700; }
+    .peer-sub, .network-sub { margin-top: 3px; color: var(--muted); font-size: 12px; overflow-wrap: anywhere; }
+    .peer-meta { display: flex; flex-wrap: wrap; gap: 5px 12px; margin-top: 8px; color: var(--muted); font-size: 11px; }
+    .pill { display: inline-flex; align-items: center; min-height: 22px; padding: 2px 7px; border-radius: 999px; background: var(--panel); color: var(--muted); font-size: 11px; white-space: nowrap; }
+    .pill.ok { color: var(--accent); background: var(--ok-bg); }
+    .pill.warn { color: var(--warning); background: var(--warn-bg); }
+    .pill.bad { color: var(--danger); background: var(--danger-bg); }
+    .network-controls { display: flex; flex: 0 0 auto; gap: 5px; }
 
-    .section { padding: 14px; margin-bottom: 14px; }
-    .section-header {
-      display: flex;
-      justify-content: space-between;
-      gap: 12px;
-      align-items: baseline;
-      margin-bottom: 11px;
-    }
-    .section-header span { color: var(--muted); font-size: 12px; }
+    .health-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+    .health-card { padding: 10px; border: 1px solid var(--line); border-radius: 6px; background: var(--panel-alt); }
+    .health-card strong { display: block; margin-bottom: 7px; }
+    .health-result { min-height: 20px; margin-bottom: 7px; color: var(--muted); font-size: 12px; }
+    .form-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+    label { display: grid; gap: 4px; color: var(--muted); font-size: 12px; }
+    input, select { width: 100%; min-height: 40px; padding: 7px 9px; border: 1px solid var(--line); border-radius: 6px; background: var(--panel-alt); color: var(--text); }
+    .form-wide { grid-column: 1 / -1; }
+    .notice { padding: 10px 12px; margin-bottom: 12px; color: var(--muted); font-size: 12px; }
+    .notice.error { border-color: var(--danger); color: var(--danger); background: var(--danger-bg); }
+    .notice.success { border-color: var(--accent); color: var(--accent); background: var(--ok-bg); }
+    .empty { padding: 18px 8px; color: var(--muted); text-align: center; }
+    .loading { color: var(--muted); }
+    .hidden { display: none !important; }
 
-    .actions {
-      display: grid;
-      grid-template-columns: repeat(3, minmax(0, 1fr));
-      gap: 9px;
-    }
-
-    button {
-      min-height: 44px;
-      padding: 9px 10px;
-      border: 1px solid var(--line);
-      border-radius: 6px;
-      background: var(--panel-strong);
-      color: var(--text);
-      font: inherit;
-      font-weight: 650;
-      cursor: pointer;
-      transition: border-color .15s ease, background .15s ease, transform .1s ease;
-    }
-    button:hover { border-color: var(--accent); }
-    button:active { transform: translateY(1px); }
-    button:disabled { cursor: wait; opacity: .55; }
-    button.primary { border-color: var(--accent-strong); background: var(--accent-strong); color: #fff; }
-    button.danger { color: var(--danger); }
-    button.wide { grid-column: span 2; }
-
-    .output-panel { overflow: hidden; }
-    .output-header {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 12px;
-      padding: 12px 14px;
-      border-bottom: 1px solid var(--line);
-    }
-    .output-header button {
-      min-height: 32px;
-      padding: 5px 9px;
-      font-size: 12px;
-    }
-    pre {
-      min-height: 180px;
-      max-height: 420px;
-      margin: 0;
-      padding: 14px;
-      overflow: auto;
-      color: var(--muted);
-      font: 12px/1.55 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-      white-space: pre-wrap;
-      overflow-wrap: anywhere;
-    }
-    .hint { margin-top: 10px; color: var(--muted); font-size: 12px; }
-
-    @media (max-width: 460px) {
-      main { padding-inline: 12px; }
-      header { display: block; }
-      .status-panel { grid-template-columns: 1fr; }
+    @media (max-width: 560px) {
+      main { padding-inline: 11px; }
+      .topbar { align-items: stretch; }
+      .top-actions { flex-direction: column; }
+      .top-actions .button { min-height: 34px; }
+      .metric-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
       .actions { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-      button.wide { grid-column: span 2; }
+      .health-grid { grid-template-columns: 1fr; }
+      .form-grid { grid-template-columns: 1fr; }
+      .form-wide { grid-column: auto; }
+    }
+    @media (max-width: 360px) {
+      h1 { font-size: 21px; }
+      .tabs { gap: 4px; }
+      .tab { font-size: 11px; }
+      .hero-row { align-items: flex-start; flex-direction: column; }
+      .hero-row > .button { width: 100%; }
     }
   </style>
 </head>
 <body>
   <main>
-    <header>
+    <header class="topbar">
       <div>
         <p class="eyebrow">NetBird / KernelSU</p>
         <h1>控制台</h1>
       </div>
-      <p class="muted" id="last-updated">尚未检查</p>
+      <div class="top-actions">
+        <button class="button compact" data-service="refresh">刷新运行时</button>
+        <button class="button compact" data-service="restart" data-confirm="确认重启 NetBird daemon？">重启</button>
+      </div>
     </header>
 
-    <section class="status-panel" aria-live="polite">
-      <div>
-        <p class="muted">Daemon 状态</p>
-        <p class="status-value"><span class="status-dot" id="status-dot"></span><span id="status-text">读取中...</span></p>
+    <section class="hero" aria-live="polite">
+      <div class="hero-row">
+        <div class="hero-status">
+          <span class="dot" id="daemon-dot"></span>
+          <div>
+            <div class="hero-state" id="daemon-state">读取中</div>
+            <div class="hero-meta" id="daemon-meta">正在读取 NetBird 状态</div>
+          </div>
+        </div>
+        <div class="section-actions">
+          <button class="button primary" data-service="start">启动</button>
+          <button class="button danger" data-service="stop" data-confirm="确认停止 NetBird daemon？">停止</button>
+        </div>
       </div>
-      <button class="primary" data-action="status">刷新状态</button>
-    </section>
-
-    <section class="section">
-      <div class="section-header">
-        <h2>服务控制</h2>
-        <span>会更新模块状态</span>
-      </div>
-      <div class="actions">
-        <button class="primary" data-action="start">启动</button>
-        <button class="danger" data-action="stop" data-confirm="确认停止 NetBird daemon？">停止</button>
-        <button data-action="restart" data-confirm="确认重启 NetBird daemon？">重启</button>
-      </div>
-    </section>
-
-    <section class="section">
-      <div class="section-header">
-        <h2>诊断信息</h2>
-        <span>只读输出</span>
-      </div>
-      <div class="actions">
-        <button data-action="peers">Peers</button>
-        <button data-action="log">最近日志</button>
-        <button data-action="version">版本</button>
+      <div class="metric-grid">
+        <div class="metric"><div class="metric-label">NetBird IPv4</div><div class="metric-value" id="metric-ip">-</div></div>
+        <div class="metric"><div class="metric-label">Peers</div><div class="metric-value" id="metric-peers">-</div></div>
+        <div class="metric"><div class="metric-label">Management</div><div class="metric-value" id="metric-management">-</div></div>
+        <div class="metric"><div class="metric-label">Signal</div><div class="metric-value" id="metric-signal">-</div></div>
       </div>
     </section>
 
-    <section class="section">
-      <div class="section-header">
-        <h2>网络维护</h2>
-        <span>不改变登录配置</span>
+    <nav class="tabs" aria-label="NetBird sections">
+      <button class="tab active" data-tab="overview">概览</button>
+      <button class="tab" data-tab="peers">Peers</button>
+      <button class="tab" data-tab="networks">Networks</button>
+      <button class="tab" data-tab="diagnostics">诊断</button>
+    </nav>
+
+    <div id="notice" class="notice hidden" role="status"></div>
+
+    <section class="view active" data-view="overview">
+      <div class="panel">
+        <div class="panel-head"><h2>连接详情</h2><span class="small" id="status-updated">-</span></div>
+        <dl class="state-grid" id="connection-details"><div class="loading">读取中...</div></dl>
       </div>
-      <div class="actions">
-        <button class="wide" data-action="refresh">刷新规则与证书</button>
-        <button data-action="route">仅刷新路由</button>
+      <div class="panel">
+        <div class="panel-head"><h2>服务操作</h2><span class="small">不会修改登录配置</span></div>
+        <div class="actions">
+          <button class="button primary" data-service="start">启动 daemon</button>
+          <button class="button danger" data-service="stop" data-confirm="确认停止 NetBird daemon？">停止 daemon</button>
+          <button class="button" data-service="restart" data-confirm="确认重启 NetBird daemon？">重启 daemon</button>
+          <button class="button" data-service="refresh">刷新规则</button>
+          <button class="button" data-service="route">刷新路由</button>
+          <button class="button" data-load="version">查看版本</button>
+        </div>
       </div>
-      <p class="hint">加入网络、登录和 setup key 仍通过终端命令执行，页面不会保存或接收密钥。</p>
     </section>
 
-    <section class="output-panel">
-      <div class="output-header">
-        <h2>命令输出</h2>
-        <button id="clear-output">清空</button>
+    <section class="view" data-view="peers">
+      <div class="panel">
+        <div class="panel-head"><h2>对端连接</h2><button class="button compact" data-load="status">刷新</button></div>
+        <div class="peer-list" id="peer-list"><div class="loading">读取中...</div></div>
       </div>
-      <pre id="output">准备就绪。</pre>
+    </section>
+
+    <section class="view" data-view="networks">
+      <div class="panel">
+        <div class="panel-head"><h2>Networks / Routes</h2><button class="button compact" data-load="networks">刷新</button></div>
+        <p class="small" style="margin-bottom:10px">启用单个 Network 会追加到当前选择，不会清除其他已选路由。显示 0.0.0.0/0 或 ::/0 时，它是管理端提供的出口路由；出口节点本身仍由管理端配置。</p>
+        <div class="network-list" id="network-list"><div class="loading">读取中...</div></div>
+      </div>
+      <div class="panel">
+        <div class="panel-head"><h2>路由选择</h2><span class="small">CLI: networks select / deselect</span></div>
+        <div class="section-actions">
+          <button class="button" data-network-all="select">接受全部</button>
+          <button class="button danger" data-network-all="deselect">停用全部</button>
+        </div>
+      </div>
+      <div class="panel">
+        <div class="panel-head"><h2>转发规则</h2><button class="button compact" data-load="forwarding">刷新</button></div>
+        <div class="simple-list" id="forwarding-list"><div class="loading">读取中...</div></div>
+      </div>
+    </section>
+
+    <section class="view" data-view="diagnostics">
+      <div class="panel">
+        <div class="panel-head"><h2>健康检查</h2><span class="small">daemon status --check</span></div>
+        <div class="health-grid">
+          <div class="health-card"><strong>Live</strong><div class="health-result" id="health-live">未检查</div><button class="button compact" data-health="live">检查</button></div>
+          <div class="health-card"><strong>Ready</strong><div class="health-result" id="health-ready">未检查</div><button class="button compact" data-health="ready">检查</button></div>
+          <div class="health-card"><strong>Startup</strong><div class="health-result" id="health-startup">未检查</div><button class="button compact" data-health="startup">检查</button></div>
+        </div>
+      </div>
+      <div class="panel">
+        <div class="panel-head"><h2>版本与状态存储</h2><span class="small">结构化摘要</span></div>
+        <div class="section-actions">
+          <button class="button" data-load="version">读取版本</button>
+          <button class="button" data-load="state">读取状态项</button>
+          <button class="button" data-load="profile-list">读取 Profiles</button>
+        </div>
+        <div class="form-grid" style="margin-top:10px">
+          <label>切换 Profile<input id="profile-name" placeholder="Profile 名称" inputmode="text"></label>
+          <div style="display:flex;align-items:end"><button class="button" style="width:100%" data-profile-select>切换 Profile</button></div>
+        </div>
+        <div class="simple-list" id="diagnostic-list" style="margin-top:10px"><div class="empty">选择一个诊断项</div></div>
+      </div>
+      <div class="panel">
+        <div class="panel-head"><h2>配置摘要</h2><button class="button compact" data-load="config">读取</button></div>
+        <div class="simple-list" id="config-list"><div class="empty">配置中的敏感字段会隐藏</div></div>
+      </div>
+      <div class="panel">
+        <div class="panel-head"><h2>受控 Debug</h2><span class="small">本地生成，不上传</span></div>
+        <div class="section-actions" style="margin-bottom:10px">
+          <button class="button" data-debug="bundle" data-confirm="生成本地 debug bundle？文件可能包含设备诊断信息。">生成 Debug Bundle</button>
+        </div>
+        <div class="form-grid">
+          <label>抓包时长<select id="capture-duration"><option value="5">5 秒</option><option value="10">10 秒</option><option value="30">30 秒</option></select></label>
+          <div style="display:flex;align-items:end"><button class="button" style="width:100%" data-debug="capture" data-confirm="开始抓包？仅持续选择的时长，结果保存在本地。">开始抓包</button></div>
+          <label>方向<select id="trace-direction"><option value="out">出站</option><option value="in">入站</option></select></label>
+          <label>协议<select id="trace-protocol"><option value="tcp">TCP</option><option value="udp">UDP</option><option value="icmp">ICMP</option></select></label>
+          <label>源地址<input id="trace-source" value="self" inputmode="text"></label>
+          <label>目标地址<input id="trace-destination" placeholder="100.64.0.1" inputmode="text"></label>
+          <div class="form-wide"><button class="button" style="width:100%" data-debug="trace" data-confirm="执行防火墙 trace？请确认地址和协议参数。">执行 Trace</button></div>
+        </div>
+        <div class="simple-list" id="debug-result" style="margin-top:10px"><div class="empty">受控诊断结果会显示在这里</div></div>
+      </div>
     </section>
   </main>
 
@@ -248,95 +300,245 @@
 
     const SERVICE = "/data/adb/netbird/scripts/netbird.service";
     const COMMANDS = Object.freeze({
-      status: `${SERVICE} status`,
-      start: `${SERVICE} start`,
-      stop: `${SERVICE} stop`,
-      restart: `${SERVICE} restart`,
-      refresh: `${SERVICE} refresh`,
-      route: `${SERVICE} route`,
-      peers: `${SERVICE} peers`,
-      log: `${SERVICE} log --once`,
-      version: `${SERVICE} version`
+      status: "webui status",
+      version: "webui version",
+      networks: "webui networks",
+      forwarding: "webui forwarding",
+      state: "webui state",
+      config: "webui config",
+      "profile-list": "webui profile-list",
+      bundle: "webui bundle"
     });
-    const STATUS_ACTIONS = new Set(["start", "stop", "restart", "refresh", "route"]);
-    const buttons = [...document.querySelectorAll("button[data-action]")];
-    const output = document.querySelector("#output");
-    const statusText = document.querySelector("#status-text");
-    const statusDot = document.querySelector("#status-dot");
-    const lastUpdated = document.querySelector("#last-updated");
+    const READ_ACTIONS = new Set(["status", "version", "networks", "forwarding", "state", "config", "profile-list"]);
+    const esc = (value) => String(value ?? "-").replace(/[&<>'"]/g, (char) => ({"&":"&amp;","<":"&lt;",">":"&gt;","'":"&#39;","\"":"&quot;"}[char]));
+    const $ = (selector) => document.querySelector(selector);
+    const $$ = (selector) => [...document.querySelectorAll(selector)];
 
+    function shellQuote(value) {
+      return `'${String(value).replace(/'/g, "'\\''")}'`;
+    }
+    function serviceCommand(action, args = []) {
+      return [SERVICE, ...action.split(" "), ...args.map(shellQuote)].join(" ");
+    }
+    function resultText(result) {
+      return `${result.stdout || ""}${result.stderr ? `\n${result.stderr}` : ""}`.trim();
+    }
+    function showNotice(message, type = "error") {
+      const notice = $("#notice");
+      notice.textContent = message;
+      notice.className = `notice ${type}`;
+      window.clearTimeout(showNotice.timer);
+      showNotice.timer = window.setTimeout(() => { notice.className = "notice hidden"; }, 5000);
+    }
     function setBusy(busy) {
-      buttons.forEach((button) => { button.disabled = busy; });
+      $$('button').forEach((button) => { button.disabled = busy; });
     }
-
-    function appendOutput(title, result) {
-      const parts = [`$ ${title}`];
-      if (result.stdout) parts.push(result.stdout.trimEnd());
-      if (result.stderr) parts.push(`[stderr]\n${result.stderr.trimEnd()}`);
-      if (typeof result.errno === "number") parts.push(`[exit ${result.errno}]`);
-      output.textContent = parts.join("\n") + "\n";
+    function parseJson(result) {
+      try { return JSON.parse(result.stdout); } catch { return null; }
     }
-
-    function updateStatus(text, errno) {
-      if (text.includes("daemon: running")) {
-        statusText.textContent = "运行中";
-        statusDot.className = "status-dot running";
-      } else if (text.includes("daemon: stopped")) {
-        statusText.textContent = "已停止";
-        statusDot.className = "status-dot stopped";
-      } else if (errno) {
-        statusText.textContent = "检查失败";
-        statusDot.className = "status-dot error";
-      } else {
-        statusText.textContent = "未知";
-        statusDot.className = "status-dot";
+    function firstValue(object, keys) {
+      for (const key of keys) {
+        if (object && object[key] !== undefined && object[key] !== null && object[key] !== "") return object[key];
       }
-      lastUpdated.textContent = new Date().toLocaleTimeString();
+      return "-";
     }
-
-    async function readStatus() {
-      const result = await exec(COMMANDS.status);
-      const text = `${result.stdout || ""}\n${result.stderr || ""}`;
-      updateStatus(text, result.errno);
+    function collectPeers(value, output = [], seen = new Set()) {
+      if (!value || typeof value !== "object" || seen.has(value)) return output;
+      seen.add(value);
+      if (Array.isArray(value)) value.forEach((item) => collectPeers(item, output, seen));
+      else {
+        if (value.fqdn || (value.netbirdIp && value.status)) output.push(value);
+        Object.values(value).forEach((item) => collectPeers(item, output, seen));
+      }
+      return output;
+    }
+    function statusModel(data) {
+      const peers = collectPeers(data);
+      return {
+        daemon: data?.daemon || "running",
+        fqdn: firstValue(data, ["fqdn", "hostname"]),
+        ip: firstValue(data, ["netbirdIp", "netbirdIPv4", "netbirdIpv4"]),
+        ipv6: firstValue(data, ["netbirdIPv6", "netbirdIpv6"]),
+        management: firstValue(data, ["managementState", "management"]),
+        signal: firstValue(data, ["signalState", "signal"]),
+        interfaceType: firstValue(data, ["interfaceType", "interface"]),
+        port: firstValue(data, ["wireguardPort", "wireguard_port"]),
+        version: firstValue(data, ["daemonVersion", "version"]),
+        total: firstValue(data, ["total", "peersCount"]),
+        connected: firstValue(data, ["connected", "connectedPeers"]),
+        peers
+      };
+    }
+    function statusState(model, error = false) {
+      const stopped = model.daemon === "stopped";
+      $("#daemon-state").textContent = stopped ? "已停止" : error ? "检查失败" : "运行中";
+      $("#daemon-dot").className = `dot ${stopped ? "stopped" : error ? "error" : "running"}`;
+      $("#daemon-meta").textContent = model.fqdn !== "-" ? model.fqdn : (error ? "无法连接到 NetBird daemon" : "NetBird daemon");
+      $("#metric-ip").textContent = model.ip;
+      $("#metric-peers").textContent = model.total !== "-" ? `${model.connected}/${model.total}` : String(model.peers.length || "-");
+      $("#metric-management").textContent = model.management;
+      $("#metric-signal").textContent = model.signal;
+      $("#status-updated").textContent = new Date().toLocaleTimeString();
+      const detail = [
+        ["FQDN", model.fqdn], ["IPv4", model.ip], ["IPv6", model.ipv6],
+        ["Interface", model.interfaceType], ["WireGuard port", model.port], ["Daemon version", model.version],
+        ["Management", model.management], ["Signal", model.signal]
+      ];
+      $("#connection-details").innerHTML = detail.map(([label, value]) => `<div class="state-item"><dt>${esc(label)}</dt><dd>${esc(value)}</dd></div>`).join("");
+    }
+    function renderPeers(model) {
+      const list = $("#peer-list");
+      if (!model.peers.length) { list.innerHTML = '<div class="empty">暂无 Peers，或 daemon 尚未连接。</div>'; return; }
+      list.innerHTML = model.peers.map((peer) => {
+        const state = firstValue(peer, ["status", "state"]);
+        const type = firstValue(peer, ["connectionType", "type"]);
+        const ip = firstValue(peer, ["netbirdIp", "netbirdIP"]);
+        const latency = firstValue(peer, ["latency", "latencyMs"]);
+        const rx = firstValue(peer, ["transferReceived", "rx"]);
+        const tx = firstValue(peer, ["transferSent", "tx"]);
+        const badge = String(state).toLowerCase().includes("connected") ? "ok" : String(state).toLowerCase().includes("idle") ? "warn" : "";
+        return `<article class="peer"><div class="peer-top"><div><div class="peer-name">${esc(firstValue(peer, ["fqdn", "name"]))}</div><div class="peer-sub">${esc(ip)}</div></div><span class="pill ${badge}">${esc(state)}</span></div><div class="peer-meta"><span>连接：${esc(type)}</span><span>延迟：${esc(latency)}</span><span>RX：${esc(rx)}</span><span>TX：${esc(tx)}</span></div></article>`;
+      }).join("");
+    }
+    function parseNetworks(text) {
+      return text.split(/\n\s*-\s*ID:\s*/).slice(1).map((block) => {
+        const lines = block.split(/\r?\n/);
+        const id = lines[0].trim();
+        const network = (block.match(/Network:\s*(.+)/) || [,"-"])[1].trim();
+        const status = (block.match(/Status:\s*(.+)/) || [,"-"])[1].trim();
+        return { id, network, status };
+      }).filter((item) => item.id);
+    }
+    function renderNetworks(text) {
+      const items = parseNetworks(text);
+      const list = $("#network-list");
+      if (!items.length) { list.innerHTML = `<div class="empty">${esc(text || "暂无 Networks / Routes")}</div>`; return; }
+      list.innerHTML = items.map((item) => {
+        const selected = /selected/i.test(item.status);
+        return `<article class="network"><div class="network-top"><div><div class="network-name">${esc(item.network)}</div><div class="network-sub">ID ${esc(item.id)}</div></div><div class="network-controls"><span class="pill ${selected ? "ok" : "warn"}">${selected ? "已启用" : "未启用"}</span><button class="button compact ${selected ? "danger" : "primary"}" data-network-action="${selected ? "deselect" : "append"}" data-network-id="${esc(item.id)}">${selected ? "停用" : "启用"}</button></div></div></article>`;
+      }).join("");
+      $$('[data-network-action]').forEach((button) => button.addEventListener("click", () => changeNetwork(button.dataset.networkAction, button.dataset.networkId)));
+    }
+    function renderLines(target, text, emptyText = "暂无数据") {
+      const lines = text.split(/\r?\n/).map((line) => line.trim()).filter(Boolean).filter((line) => !/^[-=]+$/.test(line));
+      const unavailable = lines.length === 1 && /no .* available/i.test(lines[0]);
+      $(target).innerHTML = lines.length && !unavailable ? lines.map((line) => `<div class="simple-item"><div class="simple-top"><span>${esc(line.replace(/^[-*]\s*/, ""))}</span></div></div>`).join("") : `<div class="empty">${esc(emptyText)}</div>`;
+    }
+    function renderConfig(data) {
+      const rows = [];
+      const sensitive = /key|token|secret|password|private|credential/i;
+      function walk(value, path = "") {
+        if (rows.length >= 18 || value === null || value === undefined) return;
+        if (typeof value !== "object") {
+          if (!sensitive.test(path)) rows.push([path || "value", String(value)]);
+          return;
+        }
+        Object.entries(value).forEach(([key, child]) => {
+          if (!sensitive.test(key)) walk(child, path ? `${path}.${key}` : key);
+        });
+      }
+      walk(data);
+      $("#config-list").innerHTML = rows.length ? rows.map(([key, value]) => `<div class="simple-item"><div class="simple-top"><strong>${esc(key)}</strong><span class="small">${esc(value)}</span></div></div>`).join("") : '<div class="empty">没有可显示的非敏感配置。</div>';
+    }
+    async function execute(command, options = {}) {
+      const result = await exec(command);
+      if (result.errno !== 0 && !options.allowFailure) throw new Error(result.stderr || result.stdout || `命令失败（${result.errno}）`);
       return result;
     }
-
-    async function run(action) {
-      if (!COMMANDS[action]) return;
-      const confirmation = buttons.find((button) => button.dataset.action === action)?.dataset.confirm;
-      if (confirmation && !window.confirm(confirmation)) return;
-
+    async function loadStatus() {
+      const result = await exec(serviceCommand("webui status"), { allowFailure: true });
+      const data = parseJson(result);
+      const model = data ? statusModel(data) : { daemon: result.errno === 1 ? "stopped" : "error", peers: [], fqdn: "-", ip: "-", ipv6: "-", management: "-", signal: "-", interfaceType: "-", port: "-", version: "-", total: "-", connected: "-" };
+      statusState(model, result.errno !== 0 && model.daemon !== "stopped");
+      renderPeers(model);
+      if (result.errno !== 0 && model.daemon !== "stopped") showNotice(result.stderr || "无法读取状态");
+      return result;
+    }
+    async function load(action) {
       setBusy(true);
       try {
-        const result = await exec(COMMANDS[action]);
-        appendOutput(COMMANDS[action], result);
-        if (STATUS_ACTIONS.has(action)) {
-          const statusResult = await readStatus();
-          const statusTextOutput = `${statusResult.stdout || ""}\n${statusResult.stderr || ""}`.trim();
-          output.textContent += `\n$ ${COMMANDS.status}\n${statusTextOutput}\n`;
-        } else if (action === "status") {
-          updateStatus(`${result.stdout || ""}\n${result.stderr || ""}`, result.errno);
-        }
-        if (result.errno === 0) toast(`${action} 完成`);
-        else if (action !== "status" && action !== "peers") toast(`${action} 执行失败`);
-      } catch (error) {
-        statusText.textContent = "WebUI 不可用";
-        statusDot.className = "status-dot error";
-        output.textContent = String(error);
-      } finally {
-        setBusy(false);
-      }
+        const result = await execute(serviceCommand(COMMANDS[action]));
+        if (action === "status") await loadStatus();
+        else if (action === "networks") renderNetworks(result.stdout);
+        else if (action === "forwarding") renderLines("#forwarding-list", result.stdout, "没有转发规则");
+        else if (action === "state") renderLines("#diagnostic-list", result.stdout, "没有状态存储项");
+        else if (action === "profile-list") renderLines("#diagnostic-list", result.stdout, "没有 Profiles");
+        else if (action === "config") renderConfig(parseJson(result) || {});
+        else if (action === "version") renderLines("#diagnostic-list", result.stdout, "版本不可用");
+        showNotice("已更新", "success");
+      } catch (error) { showNotice(error.message); }
+      finally { setBusy(false); }
+    }
+    async function serviceAction(action, confirmText) {
+      if (confirmText && !window.confirm(confirmText)) return;
+      setBusy(true);
+      try { await execute(serviceCommand(action)); await loadStatus(); showNotice("操作已完成", "success"); }
+      catch (error) { showNotice(error.message); }
+      finally { setBusy(false); }
+    }
+    async function changeNetwork(mode, id) {
+      if (!id) return;
+      const isAll = id === "all";
+      const action = mode === "append" ? "webui networks-append" : mode === "select" ? "webui networks-select" : "webui networks-deselect";
+      const label = mode === "append" ? "启用" : mode === "select" ? "接受全部" : "停用";
+      if (!window.confirm(`${label}${isAll ? " Network" : ` Network ${id}`}？`)) return;
+      setBusy(true);
+      try { await execute(serviceCommand(action, [id])); await load("networks"); showNotice("Network 选择已更新", "success"); }
+      catch (error) { showNotice(error.message); }
+      finally { setBusy(false); }
+    }
+    async function healthCheck(check) {
+      setBusy(true);
+      try {
+        const result = await execute(serviceCommand("webui health", [check]), { allowFailure: true });
+        const data = parseJson(result) || { ok: false };
+        const el = $(`#health-${check}`);
+        el.textContent = data.ok ? "通过" : `失败（${data.exit ?? result.errno}）`;
+        el.className = `health-result ${data.ok ? "" : "pill bad"}`;
+      } catch (error) { $(`#health-${check}`).textContent = error.message; }
+      finally { setBusy(false); }
+    }
+    async function selectProfile() {
+      const profile = $("#profile-name").value.trim();
+      if (!profile || !window.confirm(`切换到 Profile ${profile}？`)) return;
+      setBusy(true);
+      try { await execute(serviceCommand("webui profile-select", [profile])); await loadStatus(); showNotice("Profile 已切换", "success"); }
+      catch (error) { showNotice(error.message); }
+      finally { setBusy(false); }
+    }
+    async function debugAction(action) {
+      const button = document.querySelector(`[data-debug="${action}"]`);
+      if (button.dataset.confirm && !window.confirm(button.dataset.confirm)) return;
+      let command = `webui ${action}`;
+      let args = [];
+      if (action === "capture") args = [$("#capture-duration").value];
+      if (action === "trace") args = [$("#trace-direction").value, $("#trace-source").value, $("#trace-destination").value, $("#trace-protocol").value];
+      setBusy(true);
+      try {
+        const result = await execute(serviceCommand(command, args));
+        const text = result.stdout.trim();
+        let content = text;
+        try { const data = JSON.parse(text); content = data.file ? `已生成：${data.file}` : "诊断操作已完成"; } catch { content = action === "bundle" ? "Debug Bundle 已生成" : text || "操作已完成"; }
+        $("#debug-result").innerHTML = `<div class="simple-item"><div class="simple-top"><strong>${esc(action)}</strong><span class="small">${esc(content)}</span></div></div>`;
+        showNotice("诊断操作已完成", "success");
+      } catch (error) { showNotice(error.message); }
+      finally { setBusy(false); }
     }
 
-    buttons.forEach((button) => button.addEventListener("click", () => run(button.dataset.action)));
-    document.querySelector("#clear-output").addEventListener("click", () => { output.textContent = "准备就绪。"; });
-    readStatus().then((result) => {
-      appendOutput(COMMANDS.status, result);
-    }).catch((error) => {
-      statusText.textContent = "WebUI 不可用";
-      statusDot.className = "status-dot error";
-      output.textContent = String(error);
-    });
+    $$('[data-tab]').forEach((tab) => tab.addEventListener("click", () => {
+      $$('[data-tab]').forEach((item) => item.classList.toggle("active", item === tab));
+      $$('[data-view]').forEach((view) => view.classList.toggle("active", view.dataset.view === tab.dataset.tab));
+      if (tab.dataset.tab === "networks") { load("networks"); load("forwarding"); }
+      if (tab.dataset.tab === "peers") loadStatus();
+    }));
+    $$('[data-service]').forEach((button) => button.addEventListener("click", () => serviceAction(button.dataset.service, button.dataset.confirm)));
+    $$('[data-load]').forEach((button) => button.addEventListener("click", () => load(button.dataset.load)));
+    $$('[data-health]').forEach((button) => button.addEventListener("click", () => healthCheck(button.dataset.health)));
+    $$('[data-debug]').forEach((button) => button.addEventListener("click", () => debugAction(button.dataset.debug)));
+    $("[data-profile-select]").addEventListener("click", selectProfile);
+    $$('[data-network-all]').forEach((button) => button.addEventListener("click", () => changeNetwork(button.dataset.networkAll === "select" ? "select" : "deselect", "all")));
+
+    loadStatus();
   </script>
 </body>
 </html>

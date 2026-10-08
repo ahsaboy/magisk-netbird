@@ -38,15 +38,15 @@ Magisk v28+。
 ## 发布新版本
 
 ```sh
-# 更新 module.prop 和 CHANGELOG.md（v1.4.2 / NetBird 0.80.0）并提交，然后：
-git tag v1.4.2
-git push origin main v1.4.2
+# 更新 module.prop 和 CHANGELOG.md（v1.4.3 / NetBird 0.80.0）并提交，然后：
+git tag v1.4.3
+git push origin main v1.4.3
 ```
 
 `Release` 工作流会为每个架构下载对应的官方 NetBird 发布包、用
 `checksums.txt` 校验 sha256、打包三个 zip、附加到 GitHub Release，并在
 `main` 分支上刷新 `update/*.json`、`update.json` 和发布产物。
-写入的显示版本格式为 `<tag>-(<NetBird 版本>)`（如 `v1.4.2-(0.80.0)`），
+写入的显示版本格式为 `<tag>-(<NetBird 版本>)`（如 `v1.4.3-(0.80.0)`），
 更新检测本身以 `versionCode` 为准。发布前先手工在 `CHANGELOG.md` 写好本次
 版本条目，工作流会把该条目作为 GitHub Release 说明，不会自动改写变更日志。
 
@@ -108,9 +108,14 @@ su -c '<模块目录>/action.sh version'
 `su -c 'netbird.service log'`。`stop` 后显示 `daemon: stopped` 是预期结果，不代表停止失败。
 动作也可直接通过 `netbird.service` 调用，例如 `su -c 'netbird.service peers'`。
 
-KernelSU 用户可以打开模块的 **WebUI** 使用交互式控制台，页面提供服务控制、Peers、有限日志、版本、
-路由刷新和运行时刷新按钮。WebUI 只调用上述固定服务动作，不接收 setup key，也不接受任意 shell 输入。
-管理器的 ACTION 按钮仍保持无参数的“刷新规则并显示状态”入口。
+KernelSU 用户可以打开模块的 **WebUI** 使用移动端优先的控制台。页面会把 status JSON
+解析为连接卡片和 Peers 列表，并分开展示 Peers、Networks/Routes、转发规则、健康检查、版本、状态存储、
+Profiles 和隐藏敏感字段后的配置摘要。Network 选择使用固定的 `networks select`/`deselect` 动作，单个
+Network 的启用会追加到当前选择。`0.0.0.0/0` 或 `::/0` 表示管理端提供的出口路由，出口节点本身不由本模块选择。
+
+Debug Bundle、抓包和防火墙 Trace 都是受控操作：页面需要二次确认，参数经过校验，抓包时长限制为 1-30 秒，
+不会上传 Bundle，也不接受任意 shell 命令。WebUI 不展示原始日志。管理器的 ACTION 按钮仍保持无参数的
+“刷新规则并显示状态”入口。
 
 ## 配置
 
