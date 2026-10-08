@@ -1,5 +1,11 @@
 # Changelog
 
+## v1.4.4 — NetBird v0.80.0
+
+- Fixed deselection of Network/Route IDs that begin with a dot, such as `.nb.test`.
+- Disabled the WebUI page's global overscroll stretch effect while preserving normal scrolling.
+- Added regression coverage for Network ID validation and the structured status/Network parsers.
+
 ## v1.4.3 — NetBird v0.80.0
 
 - Reworked the KernelSU WebUI into a mobile-first control panel with structured status, peer, network, forwarding, health, profile, state, version, and configuration views.

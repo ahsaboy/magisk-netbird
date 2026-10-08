@@ -38,15 +38,15 @@ Magisk v28+。
 ## 发布新版本
 
 ```sh
-# 更新 module.prop 和 CHANGELOG.md（v1.4.3 / NetBird 0.80.0）并提交，然后：
-git tag v1.4.3
-git push origin main v1.4.3
+# 更新 module.prop 和 CHANGELOG.md（v1.4.4 / NetBird 0.80.0）并提交，然后：
+git tag v1.4.4
+git push origin main v1.4.4
 ```
 
 `Release` 工作流会为每个架构下载对应的官方 NetBird 发布包、用
 `checksums.txt` 校验 sha256、打包三个 zip、附加到 GitHub Release，并在
 `main` 分支上刷新 `update/*.json`、`update.json` 和发布产物。
-写入的显示版本格式为 `<tag>-(<NetBird 版本>)`（如 `v1.4.3-(0.80.0)`），
+写入的显示版本格式为 `<tag>-(<NetBird 版本>)`（如 `v1.4.4-(0.80.0)`），
 更新检测本身以 `versionCode` 为准。发布前先手工在 `CHANGELOG.md` 写好本次
 版本条目，工作流会把该条目作为 GitHub Release 说明，不会自动改写变更日志。
 
