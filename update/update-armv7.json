@@ -1,6 +1,6 @@
 {
-  "version": "v1.4.5-(0.80.0)",
-  "versionCode": 10405,
+  "version": "v1.4.4-(0.80.0)",
+  "versionCode": 10404,
   "zipUrl": "https://github.com/ahsaboy/magisk-netbird/releases/latest/download/magisk-netbird-armv7.zip",
   "changelog": "https://raw.githubusercontent.com/ahsaboy/magisk-netbird/main/CHANGELOG.md"
 }

@@ -1,10 +1,5 @@
 # Changelog
 
-## v1.4.5 — NetBird v0.80.0
-
-- Fixed WebUI Network/Route deselection by validating the requested ID against the current `netbird networks list` output instead of guessing its character format.
-- Added regression coverage for dotted, hyphenated, unknown, and unsafe Network IDs.
-
 ## v1.4.4 — NetBird v0.80.0
 
 - Fixed deselection of Network/Route IDs that begin with a dot, such as `.nb.test`.
