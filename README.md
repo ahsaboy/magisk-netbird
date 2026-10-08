@@ -125,8 +125,11 @@ service, while the exit peer itself is not selected by this module.
 
 The WebUI does not accept setup keys or arbitrary shell commands. It keeps raw log output
 out of the interface and focuses on parsed status, peer, route, health, profile, and
-state information. The manager's ACTION button remains the short, no-argument
-refresh-and-status entry point.
+state information. The top-right language selector supports Chinese and English,
+follows the system language on first launch, and persists the user's choice. Switching
+between Peers and Networks changes the view immediately; data refreshes silently with a
+five-second cooldown to avoid repeated root commands. The manager's ACTION button
+remains the short, no-argument refresh-and-status entry point.
 
 ## Configuration
 
