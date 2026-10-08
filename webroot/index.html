@@ -302,19 +302,19 @@
     const I18N = {
       zh: {
         title: "控制台", overview: "概览", peers: "Peers", networks: "Networks", diagnostics: "诊断",
-        running: "运行中", stopped: "已停止", checking: "读取中", checkFailed: "检查失败", unknown: "未知",
-        statusUnavailable: "无法连接到 NetBird daemon", daemon: "NetBird daemon", connected: "Connected", disconnected: "Disconnected",
+        running: "运行中", stopped: "已停止", checking: "读取中", checkFailed: "检查失败", unknown: "未知", idle: "空闲", connecting: "连接中",
+        statusUnavailable: "无法连接到 NetBird daemon", daemon: "NetBird daemon", connected: "已连接", disconnected: "未连接", domainsLabel: "域名", resolvedIpsLabel: "解析 IP",
         noPeers: "暂无 Peers，或 daemon 尚未连接。", noNetworks: "暂无 Networks / Routes", noForwarding: "没有转发规则",
         refresh: "刷新", refreshRuntime: "刷新运行时", restart: "重启", start: "启动", stop: "停止", startDaemon: "启动 daemon", stopDaemon: "停止 daemon", restartDaemon: "重启 daemon", refreshRules: "刷新规则", refreshRoute: "刷新路由", viewVersion: "查看版本",
-        connection: "连接详情", serviceOps: "服务操作", noLoginChange: "不会修改登录配置", peerConnections: "对端连接", networksRoutes: "Networks / Routes", forwarding: "转发规则", health: "健康检查", versionState: "版本与状态存储", structured: "结构化摘要", readVersion: "读取版本", readState: "读取状态项", readProfiles: "读取 Profiles", switchProfile: "切换 Profile", profilePlaceholder: "Profile 名称", selectProfile: "切换 Profile", noDiagnostic: "选择一个诊断项", noState: "没有状态存储项", noProfiles: "没有 Profiles", versionUnavailable: "版本不可用", check: "检查", passed: "通过", notChecked: "未检查", routeHint: "启用单个 Network 会追加到当前选择，不会清除其他已选路由。显示 0.0.0.0/0 或 ::/0 时，它是管理端提供的出口路由；出口节点本身仍由管理端配置。", acceptAll: "接受全部", deselectAll: "停用全部", selected: "已启用", notSelected: "未启用", enable: "启用", disable: "停用", noData: "暂无数据", updated: "已更新", operationDone: "操作已完成", networkUpdated: "Network 选择已更新", profileUpdated: "Profile 已切换", language: "语言选择", secondsCooldown: "刚刚更新，5 秒后可再次刷新", confirmStart: "确认启动 NetBird daemon？", confirmStop: "确认停止 NetBird daemon？", confirmRestart: "确认重启 NetBird daemon？", confirmRefresh: "确认刷新 NetBird 运行时规则和证书？", confirmRoute: "确认刷新 Android 路由规则？", confirmDeselectAll: "确认停用全部 Network？", confirmDeselect: "确认停用这个 Network？", confirmProfile: "确认切换 Profile？", invalid: "操作参数无效", connectionLabel: "连接", latencyLabel: "延迟", rxLabel: "RX", txLabel: "TX", fqdnLabel: "FQDN", ipv4Label: "IPv4", ipv6Label: "IPv6", interfaceLabel: "Interface", portLabel: "WireGuard port", daemonVersionLabel: "Daemon version", managementLabel: "Management", signalLabel: "Signal"
+        connection: "连接详情", serviceOps: "服务操作", noLoginChange: "不会修改登录配置", peerConnections: "对端连接", networksRoutes: "Networks / Routes", forwarding: "转发规则", health: "健康检查", versionState: "版本与状态存储", structured: "结构化摘要", readVersion: "读取版本", readState: "读取状态项", readProfiles: "读取 Profiles", switchProfile: "切换 Profile", profilePlaceholder: "Profile 名称", selectProfile: "切换 Profile", noDiagnostic: "选择一个诊断项", noState: "没有状态存储项", noProfiles: "没有 Profiles", versionUnavailable: "版本不可用", check: "检查", passed: "通过", notChecked: "未检查", routeHint: "启用单个 Network 会追加到当前选择，不会清除其他已选路由。显示 0.0.0.0/0 或 ::/0 时，它是管理端提供的出口路由；出口节点本身仍由管理端配置。", acceptAll: "接受全部", deselectAll: "停用全部", selected: "已启用", notSelected: "未启用", enable: "启用", disable: "停用", noData: "暂无数据", updated: "已更新", operationDone: "操作已完成", networkUpdated: "Network 选择已更新", profileUpdated: "Profile 已切换", language: "语言选择", secondsCooldown: "刚刚更新，5 秒后可再次刷新", confirmStart: "确认启动 NetBird daemon？", confirmStop: "确认停止 NetBird daemon？", confirmRestart: "确认重启 NetBird daemon？", confirmRefresh: "确认刷新 NetBird 运行时规则和证书？", confirmRoute: "确认刷新 Android 路由规则？", confirmDeselectAll: "确认停用全部 Network？", confirmDeselectPrefix: "确认停用 Network", confirmDeselectSuffix: "？", confirmProfile: "确认切换 Profile？", invalid: "操作参数无效", connectionLabel: "连接", latencyLabel: "延迟", rxLabel: "RX", txLabel: "TX", fqdnLabel: "FQDN", ipv4Label: "IPv4", ipv6Label: "IPv6", interfaceLabel: "Interface", portLabel: "WireGuard port", daemonVersionLabel: "Daemon version", managementLabel: "Management", signalLabel: "Signal"
       },
       en: {
         title: "Console", overview: "Overview", peers: "Peers", networks: "Networks", diagnostics: "Diagnostics",
-        running: "Running", stopped: "Stopped", checking: "Loading", checkFailed: "Check failed", unknown: "Unknown",
-        statusUnavailable: "NetBird daemon is unavailable", daemon: "NetBird daemon", connected: "Connected", disconnected: "Disconnected",
+        running: "Running", stopped: "Stopped", checking: "Loading", checkFailed: "Check failed", unknown: "Unknown", idle: "Idle", connecting: "Connecting",
+        statusUnavailable: "NetBird daemon is unavailable", daemon: "NetBird daemon", connected: "Connected", disconnected: "Disconnected", domainsLabel: "Domains", resolvedIpsLabel: "Resolved IPs",
         noPeers: "No peers, or the daemon is not connected.", noNetworks: "No networks or routes", noForwarding: "No forwarding rules",
         refresh: "Refresh", refreshRuntime: "Refresh runtime", restart: "Restart", start: "Start", stop: "Stop", startDaemon: "Start daemon", stopDaemon: "Stop daemon", restartDaemon: "Restart daemon", refreshRules: "Refresh rules", refreshRoute: "Refresh routes", viewVersion: "View version",
-        connection: "Connection details", serviceOps: "Service actions", noLoginChange: "Login settings are unchanged", peerConnections: "Peer connections", networksRoutes: "Networks / Routes", forwarding: "Forwarding rules", health: "Health checks", versionState: "Version and state", structured: "Structured summary", readVersion: "Read version", readState: "Read state", readProfiles: "Read profiles", switchProfile: "Switch profile", profilePlaceholder: "Profile name", selectProfile: "Switch profile", noDiagnostic: "Choose a diagnostic item", noState: "No stored state items", noProfiles: "No profiles", versionUnavailable: "Version unavailable", check: "Check", passed: "Passed", notChecked: "Not checked", routeHint: "Selecting one network appends it to the current selection. 0.0.0.0/0 or ::/0 is an exit route supplied by the management service; the exit peer itself is configured there.", acceptAll: "Accept all", deselectAll: "Disable all", selected: "Selected", notSelected: "Not selected", enable: "Enable", disable: "Disable", noData: "No data", updated: "Updated", operationDone: "Operation completed", networkUpdated: "Network selection updated", profileUpdated: "Profile switched", language: "Language", secondsCooldown: "Updated recently; refresh available in 5 seconds", confirmStart: "Start the NetBird daemon?", confirmStop: "Stop the NetBird daemon?", confirmRestart: "Restart the NetBird daemon?", confirmRefresh: "Refresh NetBird runtime rules and certificates?", confirmRoute: "Refresh Android route rules?", confirmDeselectAll: "Disable all networks?", confirmDeselect: "Disable this network?", confirmProfile: "Switch profile?", invalid: "Invalid operation parameters", connectionLabel: "Connection", latencyLabel: "Latency", rxLabel: "RX", txLabel: "TX", fqdnLabel: "FQDN", ipv4Label: "IPv4", ipv6Label: "IPv6", interfaceLabel: "Interface", portLabel: "WireGuard port", daemonVersionLabel: "Daemon version", managementLabel: "Management", signalLabel: "Signal"
+        connection: "Connection details", serviceOps: "Service actions", noLoginChange: "Login settings are unchanged", peerConnections: "Peer connections", networksRoutes: "Networks / Routes", forwarding: "Forwarding rules", health: "Health checks", versionState: "Version and state", structured: "Structured summary", readVersion: "Read version", readState: "Read state", readProfiles: "Read profiles", switchProfile: "Switch profile", profilePlaceholder: "Profile name", selectProfile: "Switch profile", noDiagnostic: "Choose a diagnostic item", noState: "No stored state items", noProfiles: "No profiles", versionUnavailable: "Version unavailable", check: "Check", passed: "Passed", notChecked: "Not checked", routeHint: "Selecting one network appends it to the current selection. 0.0.0.0/0 or ::/0 is an exit route supplied by the management service; the exit peer itself is configured there.", acceptAll: "Accept all", deselectAll: "Disable all", selected: "Selected", notSelected: "Not selected", enable: "Enable", disable: "Disable", noData: "No data", updated: "Updated", operationDone: "Operation completed", networkUpdated: "Network selection updated", profileUpdated: "Profile switched", language: "Language", secondsCooldown: "Updated recently; refresh available in 5 seconds", confirmStart: "Start the NetBird daemon?", confirmStop: "Stop the NetBird daemon?", confirmRestart: "Restart the NetBird daemon?", confirmRefresh: "Refresh NetBird runtime rules and certificates?", confirmRoute: "Refresh Android route rules?", confirmDeselectAll: "Disable all networks?", confirmDeselectPrefix: "Disable network", confirmDeselectSuffix: "?", confirmProfile: "Switch profile?", invalid: "Invalid operation parameters", connectionLabel: "Connection", latencyLabel: "Latency", rxLabel: "RX", txLabel: "TX", fqdnLabel: "FQDN", ipv4Label: "IPv4", ipv6Label: "IPv6", interfaceLabel: "Interface", portLabel: "WireGuard port", daemonVersionLabel: "Daemon version", managementLabel: "Management", signalLabel: "Signal"
       }
     };
     const savedLanguage = localStorage.getItem("netbird.language");
@@ -340,6 +340,14 @@
       });
       $$('[data-confirm-key]').forEach((button) => { button.dataset.confirm = t(button.dataset.confirmKey); });
       $("#profile-name")?.setAttribute("placeholder", t("profilePlaceholder"));
+    }
+    function connectionText(value) {
+      const normalized = String(value ?? "").toLowerCase();
+      if (normalized.includes("disconnected") || normalized.includes("offline")) return t("disconnected");
+      if (normalized.includes("connected") || normalized === "online") return t("connected");
+      if (normalized.includes("connecting")) return t("connecting");
+      if (normalized.includes("idle")) return t("idle");
+      return value ?? "-";
     }
     function shellQuote(value) {
       return `'${String(value).replace(/'/g, "'\\''")}'`;
@@ -370,13 +378,13 @@
       $("#daemon-meta").textContent = model.fqdn !== "-" ? model.fqdn : (error ? t("statusUnavailable") : t("daemon"));
       $("#metric-ip").textContent = model.ip;
       $("#metric-peers").textContent = model.total !== "-" ? `${model.connected}/${model.total}` : String(model.peers.length || "-");
-      $("#metric-management").textContent = model.management;
-      $("#metric-signal").textContent = model.signal;
+      $("#metric-management").textContent = connectionText(model.management);
+      $("#metric-signal").textContent = connectionText(model.signal);
       $("#status-updated").textContent = new Date().toLocaleTimeString();
       const detail = [
         [t("fqdnLabel"), model.fqdn], [t("ipv4Label"), model.ip], [t("ipv6Label"), model.ipv6],
         [t("interfaceLabel"), model.interfaceType], [t("portLabel"), model.port], [t("daemonVersionLabel"), model.version],
-        [t("managementLabel"), model.management], [t("signalLabel"), model.signal]
+        [t("managementLabel"), connectionText(model.management)], [t("signalLabel"), connectionText(model.signal)]
       ];
       $("#connection-details").innerHTML = detail.map(([label, value]) => `<div class="state-item"><dt>${esc(label)}</dt><dd>${esc(value)}</dd></div>`).join("");
     }
@@ -391,7 +399,7 @@
         const rx = formatBytes(firstValue(peer, ["transferReceived", "rx"]));
         const tx = formatBytes(firstValue(peer, ["transferSent", "tx"]));
         const badge = String(state).toLowerCase().includes("connected") ? "ok" : String(state).toLowerCase().includes("idle") ? "warn" : "";
-        return `<article class="peer"><div class="peer-top"><div><div class="peer-name">${esc(firstValue(peer, ["fqdn", "name"]))}</div><div class="peer-sub">${esc(ip)}</div></div><span class="pill ${badge}">${esc(state)}</span></div><div class="peer-meta"><span>${esc(t("connectionLabel"))}: ${esc(type)}</span><span>${esc(t("latencyLabel"))}: ${esc(latency)}</span><span>${esc(t("rxLabel"))}: ${esc(rx)}</span><span>${esc(t("txLabel"))}: ${esc(tx)}</span></div></article>`;
+        return `<article class="peer"><div class="peer-top"><div><div class="peer-name">${esc(firstValue(peer, ["fqdn", "name"]))}</div><div class="peer-sub">${esc(ip)}</div></div><span class="pill ${badge}">${esc(connectionText(state))}</span></div><div class="peer-meta"><span>${esc(t("connectionLabel"))}: ${esc(type)}</span><span>${esc(t("latencyLabel"))}: ${esc(latency)}</span><span>${esc(t("rxLabel"))}: ${esc(rx)}</span><span>${esc(t("txLabel"))}: ${esc(tx)}</span></div></article>`;
       }).join("");
     }
     function renderNetworks(text) {
@@ -401,8 +409,8 @@
       list.innerHTML = items.map((item) => {
         const selected = /^selected$/i.test(String(item.status).trim());
         const route = item.network !== "-" ? `<div class="network-sub">${esc(item.network)}</div>` : "";
-        const domains = item.domains !== "-" ? `<div class="network-sub">Domains: ${esc(item.domains)}</div>` : "";
-        const resolved = item.resolvedIps !== "-" ? `<div class="network-sub">Resolved IPs: ${esc(item.resolvedIps)}</div>` : "";
+        const domains = item.domains !== "-" ? `<div class="network-sub">${esc(t("domainsLabel"))}: ${esc(item.domains)}</div>` : "";
+        const resolved = item.resolvedIps !== "-" ? `<div class="network-sub">${esc(t("resolvedIpsLabel"))}: ${esc(item.resolvedIps)}</div>` : "";
         return `<article class="network"><div class="network-top"><div><div class="network-name">${esc(item.id)}</div>${route}${domains}${resolved}</div><div class="network-controls"><span class="pill ${selected ? "ok" : "warn"}">${selected ? esc(t("selected")) : esc(t("notSelected"))}</span><button class="button compact ${selected ? "danger" : "primary"}" data-network-action="${selected ? "deselect" : "append"}" data-network-id="${esc(item.id)}">${selected ? esc(t("disable")) : esc(t("enable"))}</button></div></div></article>`;
       }).join("");
       $$('[data-network-action]').forEach((button) => button.addEventListener("click", () => changeNetwork(button.dataset.networkAction, button.dataset.networkId)));
@@ -473,7 +481,10 @@
       const isAll = id === "all";
       const action = mode === "append" ? "webui networks-append" : mode === "select" ? "webui networks-select" : "webui networks-deselect";
       const label = mode === "append" ? t("enable") : mode === "select" ? t("acceptAll") : t("disable");
-      if (mode === "deselect" && !window.confirm(`${label}${isAll ? " Network" : ` Network ${id}`}？`)) return;
+      if (mode === "deselect") {
+        const message = isAll ? t("confirmDeselectAll") : `${t("confirmDeselectPrefix")} ${id}${t("confirmDeselectSuffix")}`;
+        if (!window.confirm(message)) return;
+      }
       setBusy(true);
       try { await execute(serviceCommand(action, [id])); await load("networks", { force: true }); showNotice(t("networkUpdated"), "success"); }
       catch (error) { showNotice(error.message); }

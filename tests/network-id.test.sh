@@ -1,4 +1,4 @@
-#!/system/bin/sh
+#!/bin/sh
 
 network_list='Available Networks:
 
