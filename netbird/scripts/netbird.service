@@ -29,24 +29,40 @@ family_ip() {
   esac
 }
 
+ensure_overlay_route_family() {
+  route_family="$1"
+  fallback_cidr="$2"
+
+  if family_ip "$route_family" rule show 2>/dev/null |
+    grep -q "lookup main suppress_prefixlength 0"; then
+    return 0
+  fi
+  if family_ip "$route_family" rule add pref "$overlay_rule_pref" from all \
+    lookup main suppress_prefixlength 0 >/dev/null 2>&1; then
+    return 0
+  fi
+  # A failed add may have raced with another refresh; accept a rule that is
+  # visible now before trying the narrower overlay-prefix fallback.
+  if family_ip "$route_family" rule show 2>/dev/null |
+    grep -q "to $fallback_cidr lookup main"; then
+    return 0
+  fi
+  if family_ip "$route_family" rule add pref "$overlay_rule_pref" \
+    to "$fallback_cidr" lookup main >/dev/null 2>&1; then
+    return 0
+  fi
+
+  log Warning "Failed to install IPv$route_family overlay route precedence rule."
+  return 1
+}
+
 ensure_overlay_route_precedence() {
   # Keep IPv4 and IPv6 checks independent. A working IPv4 suppress rule must
   # not prevent the IPv6 overlay rule from being installed.
-  if ! ip rule show 2>/dev/null | grep -q "lookup main suppress_prefixlength 0"; then
-    if ! ip rule add pref "$overlay_rule_pref" from all lookup main suppress_prefixlength 0 >/dev/null 2>&1; then
-      if ! ip rule show 2>/dev/null | grep -q "to 100.64.0.0/10 lookup main"; then
-        ip rule add pref "$overlay_rule_pref" to 100.64.0.0/10 lookup main >/dev/null 2>&1 || true
-      fi
-    fi
-  fi
-
-  if ! ip -6 rule show 2>/dev/null | grep -q "lookup main suppress_prefixlength 0"; then
-    if ! ip -6 rule add pref "$overlay_rule_pref" from all lookup main suppress_prefixlength 0 >/dev/null 2>&1; then
-      if ! ip -6 rule show 2>/dev/null | grep -q "to fd00::/8 lookup main"; then
-        ip -6 rule add pref "$overlay_rule_pref" to fd00::/8 lookup main >/dev/null 2>&1 || true
-      fi
-    fi
-  fi
+  overlay_rc=0
+  ensure_overlay_route_family 4 100.64.0.0/10 || overlay_rc=1
+  ensure_overlay_route_family 6 fd00::/8 || overlay_rc=1
+  return "$overlay_rc"
 }
 
 resolve_android_table_id() {
@@ -135,8 +151,15 @@ get_android_default_table() {
 # ip builds print symbolic table names but reject them as input (invalid ID).
 cleanup_root_route_family() {
   cleanup_family="$1"
-  while family_ip "$cleanup_family" rule show 2>/dev/null |
-    awk -v p="$root_route_rule_pref:" '$1 == p && /uidrange 0-0/ { found = 1 } END { exit !found }'; do
+  while :; do
+    cleanup_rules="$(family_ip "$cleanup_family" rule show 2>/dev/null)" || {
+      log Warning "Failed to inspect IPv$cleanup_family routing rules."
+      return 1
+    }
+    if ! printf '%s\n' "$cleanup_rules" |
+      awk -v p="$root_route_rule_pref:" '$1 == p && /uidrange 0-0/ { found = 1 } END { exit !found }'; then
+      return 0
+    fi
     family_ip "$cleanup_family" rule del pref "$root_route_rule_pref" \
       from all uidrange 0-0 >/dev/null 2>&1 || {
       log Warning "Failed to remove IPv$cleanup_family root uid route rule."
@@ -152,7 +175,7 @@ ensure_android_route_family() {
   # No unambiguous underlay for this family: do not leave a stale rule.
   if [ -z "$route_table" ]; then
     cleanup_root_route_family "$route_family"
-    return 0
+    return "$?"
   fi
 
   route_rule_current=0
@@ -180,44 +203,100 @@ ensure_android_route_family() {
 
   [ "$route_rule_current" -eq 1 ] && return 0
 
-  family_ip "$route_family" rule add pref "$root_route_rule_pref" \
-    from all uidrange 0-0 lookup "$route_table" >/dev/null 2>&1 ||
+  if ! family_ip "$route_family" rule add pref "$root_route_rule_pref" \
+    from all uidrange 0-0 lookup "$route_table" >/dev/null 2>&1; then
     log Warning "Failed to add IPv$route_family root uid route rule for table $route_table."
+    return 1
+  fi
+  return 0
 }
 
 ensure_android_route() {
-  ensure_overlay_route_precedence
-  ensure_android_route_family 4
-  ensure_android_route_family 6
+  route_rc=0
+  ensure_overlay_route_precedence || route_rc=1
+  ensure_android_route_family 4 || route_rc=1
+  ensure_android_route_family 6 || route_rc=1
+  return "$route_rc"
 }
 
-# Drop route rules this module added (used on stop/uninstall).
+cleanup_overlay_route_family() {
+  cleanup_family="$1"
+  cleanup_cidr="$2"
+  cleanup_rc=0
+  cleanup_rules="$(family_ip "$cleanup_family" rule show 2>/dev/null)" || {
+    log Warning "Failed to inspect IPv$cleanup_family overlay routing rules."
+    return 1
+  }
+
+  if printf '%s\n' "$cleanup_rules" |
+    grep -q "lookup main suppress_prefixlength 0"; then
+    if ! family_ip "$cleanup_family" rule del pref "$overlay_rule_pref" \
+      from all lookup main suppress_prefixlength 0 >/dev/null 2>&1; then
+      log Warning "Failed to remove IPv$cleanup_family overlay route precedence rule."
+      cleanup_rc=1
+    fi
+  fi
+  cleanup_rules="$(family_ip "$cleanup_family" rule show 2>/dev/null)" || {
+    log Warning "Failed to recheck IPv$cleanup_family overlay routing rules."
+    return 1
+  }
+  if printf '%s\n' "$cleanup_rules" |
+    grep -q "to $cleanup_cidr lookup main"; then
+    if ! family_ip "$cleanup_family" rule del pref "$overlay_rule_pref" \
+      to "$cleanup_cidr" lookup main >/dev/null 2>&1; then
+      log Warning "Failed to remove IPv$cleanup_family overlay fallback rule."
+      cleanup_rc=1
+    fi
+  fi
+  return "$cleanup_rc"
+}
+
+# Drop route and firewall rules this module added (used on stop/uninstall).
 cleanup_runtime() {
-  ip rule del pref "$overlay_rule_pref" from all lookup main suppress_prefixlength 0 >/dev/null 2>&1 || true
-  ip -6 rule del pref "$overlay_rule_pref" from all lookup main suppress_prefixlength 0 >/dev/null 2>&1 || true
-  ip rule del pref "$overlay_rule_pref" to 100.64.0.0/10 lookup main >/dev/null 2>&1 || true
-  ip -6 rule del pref "$overlay_rule_pref" to fd00::/8 lookup main >/dev/null 2>&1 || true
-  cleanup_root_route_family 4
-  cleanup_root_route_family 6
+  cleanup_rc=0
+  cleanup_overlay_route_family 4 100.64.0.0/10 || cleanup_rc=1
+  cleanup_overlay_route_family 6 fd00::/8 || cleanup_rc=1
+  cleanup_root_route_family 4 || cleanup_rc=1
+  cleanup_root_route_family 6 || cleanup_rc=1
   # The wt0 interface is already destroyed when the daemon exits, so delete
   # the rules by parsing the live rule list instead of enumerating interfaces.
   for fw in iptables ip6tables; do
     command -v "$fw" >/dev/null 2>&1 || continue
     for chain in INPUT OUTPUT; do
-      "$fw" -S "$chain" 2>/dev/null |
-        grep -E "^-A $chain -[io] (wt|wg|nb|netbird)[0-9a-zA-Z._@-]* -p (icmp|ipv6-icmp) -j ACCEPT" |
-        sed 's/^-A /-D /' |
-        while read -r del_rule; do
-          # shellcheck disable=SC2086
-          "$fw" $del_rule >/dev/null 2>&1 || true
-        done
+      fw_rules="$("$fw" -S "$chain" 2>/dev/null)" || {
+        log Warning "Failed to inspect $fw $chain rules."
+        cleanup_rc=1
+        continue
+      }
+      del_rules="$(
+        printf '%s\n' "$fw_rules" |
+          grep -E "^-A $chain -[io] (wt|wg|nb|netbird)[0-9a-zA-Z._@-]* -p (icmp|ipv6-icmp) -j ACCEPT" |
+          sed 's/^-A /-D /' || true
+      )"
+      while IFS= read -r del_rule; do
+        [ -n "$del_rule" ] || continue
+        # shellcheck disable=SC2086
+        if ! "$fw" $del_rule >/dev/null 2>&1; then
+          log Warning "Failed to remove $fw rule: $del_rule"
+          cleanup_rc=1
+        fi
+      done <<EOF
+$del_rules
+EOF
     done
   done
+  return "$cleanup_rc"
 }
 
 ensure_rule() {
-  "$@" -C "$rule_chain" $rule_args >/dev/null 2>&1 ||
-    "$@" -I "$rule_chain" 1 $rule_args >/dev/null 2>&1 || true
+  if "$@" -C "$rule_chain" $rule_args >/dev/null 2>&1; then
+    return 0
+  fi
+  if ! "$@" -I "$rule_chain" 1 $rule_args >/dev/null 2>&1; then
+    log Warning "Failed to add firewall rule to $rule_chain: $rule_args"
+    return 1
+  fi
+  return 0
 }
 
 netbird_ifaces() {
@@ -227,29 +306,37 @@ netbird_ifaces() {
 }
 
 ensure_netbird_icmp_firewall() {
+  firewall_rc=0
   for iface in $(netbird_ifaces); do
     rule_chain="INPUT"
     rule_args="-i $iface -p icmp -j ACCEPT"
-    ensure_rule iptables
+    ensure_rule iptables || firewall_rc=1
     rule_chain="OUTPUT"
     rule_args="-o $iface -p icmp -j ACCEPT"
-    ensure_rule iptables
+    ensure_rule iptables || firewall_rc=1
 
     if command -v ip6tables >/dev/null 2>&1; then
       rule_chain="INPUT"
       rule_args="-i $iface -p ipv6-icmp -j ACCEPT"
-      ensure_rule ip6tables
+      ensure_rule ip6tables || firewall_rc=1
       rule_chain="OUTPUT"
       rule_args="-o $iface -p ipv6-icmp -j ACCEPT"
-      ensure_rule ip6tables
+      ensure_rule ip6tables || firewall_rc=1
     fi
   done
+  return "$firewall_rc"
 }
 
 refresh_runtime() {
-  [ -x "$cert_trust_script" ] && "$cert_trust_script" update >/dev/null 2>&1 || true
-  ensure_android_route
-  ensure_netbird_icmp_firewall
+  refresh_rc=0
+  if [ -x "$cert_trust_script" ] &&
+    ! "$cert_trust_script" update >/dev/null 2>&1; then
+    log Warning "Failed to refresh the CA trust bundle."
+    refresh_rc=1
+  fi
+  ensure_android_route || refresh_rc=1
+  ensure_netbird_icmp_firewall || refresh_rc=1
+  return "$refresh_rc"
 }
 
 update_module_status() {
@@ -264,7 +351,7 @@ start_module_status() {
 
 stop_module_status() {
   [ -x "$module_status_script" ] || return 0
-  "$module_status_script" stop >/dev/null 2>&1 || true
+  "$module_status_script" stop >/dev/null 2>&1
 }
 
 start_service() {
@@ -275,15 +362,22 @@ start_service() {
   if is_running; then
     log Info "NetBird daemon is already running."
     refresh_runtime
-    start_module_status
-    return 0
+    start_rc="$?"
+    start_module_status || start_rc=1
+    return "$start_rc"
   fi
   if ! command -v netbird >/dev/null 2>&1; then
     log Error "netbird binary not found."
+    rm -f "$NB_RUN_DIR/netbird.desired"
     update_module_status
     return 1
   fi
-  ensure_android_route
+  if ! ensure_android_route; then
+    log Error "Failed to prepare Android routing for NetBird."
+    rm -f "$NB_RUN_DIR/netbird.desired"
+    update_module_status
+    return 1
+  fi
   rm -f "$NB_SOCKET"
   [ -f "$NB_LOG_FILE_PATH" ] && mv "$NB_LOG_FILE_PATH" "$NB_LOG_FILE_PATH.bak"
   # shellcheck disable=SC2086
@@ -313,10 +407,12 @@ stop_service() {
   # Clear desired state first so the watchdog never races a manual stop.
   rm -f "$NB_RUN_DIR/netbird.desired"
   log Info "Stopping NetBird daemon."
+  stop_rc=0
   if ! is_running; then
-    cleanup_runtime
+    cleanup_runtime || stop_rc=1
     log Info "NetBird daemon is not running."
-    return 0
+    stop_module_status || stop_rc=1
+    return "$stop_rc"
   fi
   for pid in $(busybox pgrep -f "$NB_DAEMON_CMD" 2>/dev/null); do
     kill -15 "$pid" >/dev/null 2>&1 || true
@@ -328,9 +424,14 @@ stop_service() {
       kill -9 "$pid" >/dev/null 2>&1 || true
     done
   fi
-  cleanup_runtime
+  if is_running; then
+    log Error "NetBird daemon is still running after stop."
+    stop_rc=1
+  fi
+  cleanup_runtime || stop_rc=1
   rm -f "$pid_file"
-  stop_module_status
+  stop_module_status || stop_rc=1
+  return "$stop_rc"
 }
 
 daemon_status() {
@@ -369,6 +470,7 @@ up_cmd() {
 
 usage() {
   echo "usage: netbird.service {start|stop|restart|status|up|down|login|log|refresh|route|peers|version}"
+  echo "  log follows the client log; use log --once for the latest 200 lines."
   echo "  up always adds --disable-dns before your extra flags."
   echo "  peers shows per-peer connection type (P2P/Relayed), latency and traffic."
   echo "  Set NB_DISABLE_IPV6=true and/or NB_DISABLE_FIREWALL=true to append those on up."
@@ -383,6 +485,8 @@ case "${1:-}" in
     ;;
   restart)
     stop_service
+    rc="$?"
+    [ "$rc" -eq 0 ] || exit "$rc"
     sleep 1
     start_service
     ;;
@@ -422,15 +526,33 @@ case "${1:-}" in
     exit "$rc"
     ;;
   log)
-    busybox tail -n 200 -f "$NB_LOG_FILE_PATH"
+    shift
+    case "${1:-}" in
+      --once)
+        if [ -f "$NB_LOG_FILE_PATH" ]; then
+          busybox tail -n 200 "$NB_LOG_FILE_PATH"
+        else
+          echo "NetBird log is not available."
+        fi
+        ;;
+      '')
+        busybox tail -n 200 -f "$NB_LOG_FILE_PATH"
+        ;;
+      *)
+        echo "usage: netbird.service log [--once]"
+        exit 2
+        ;;
+    esac
     ;;
   refresh)
     refresh_runtime
+    rc="$?"
     update_module_status
+    exit "$rc"
     ;;
   route)
     ensure_android_route
-    exit 0
+    exit "$?"
     ;;
   peers)
     exec "$module_status_script" peers

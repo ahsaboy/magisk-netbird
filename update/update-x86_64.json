@@ -1,6 +1,6 @@
 {
-  "version": "v1.4.1-(0.80.0)",
-  "versionCode": 10401,
+  "version": "v1.4.2-(0.80.0)",
+  "versionCode": 10402,
   "zipUrl": "https://github.com/ahsaboy/magisk-netbird/releases/latest/download/magisk-netbird-x86_64.zip",
   "changelog": "https://raw.githubusercontent.com/ahsaboy/magisk-netbird/main/CHANGELOG.md"
 }

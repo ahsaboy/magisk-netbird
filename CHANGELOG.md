@@ -1,5 +1,12 @@
 # Changelog
 
+## v1.4.2 — NetBird v0.80.0
+
+- Added a KernelSU WebUI control panel with status, start, stop, restart, peers, bounded logs, version, route refresh, and runtime refresh actions.
+- Kept the no-argument ACTION entry compatible while adding fixed, validated action dispatch through `action.sh` and `netbird.service`.
+- Added `log --once` for non-blocking manager output and propagated route, firewall, CA, daemon, watcher, and cleanup failures through service exit codes.
+- Packaged the WebUI in local and GitHub Actions release archives and documented the KernelSU interaction model.
+
 ## v1.4.1 — NetBird v0.80.0
 
 - Completed Android IPv4/IPv6 overlay route precedence handling and re-applied root underlay route rules for both families during network changes.

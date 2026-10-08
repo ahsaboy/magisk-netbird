@@ -115,8 +115,8 @@ jobs:
           set -euo pipefail
           zip -r9 "${{ matrix.zip_name }}" \
             META-INF customize.sh module.prop service.sh uninstall.sh action.sh \
-            README.md netbird system
-          unzip -l "${{ matrix.zip_name }}" | grep -E 'netbird/bin/netbird|module.prop$'
+            README.md netbird system webroot
+          unzip -l "${{ matrix.zip_name }}" | grep -E 'netbird/bin/netbird|module.prop$|webroot/index.html$'
 
       - uses: actions/upload-artifact@v4
         with:

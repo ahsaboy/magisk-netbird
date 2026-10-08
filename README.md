@@ -39,16 +39,16 @@ Kitsune and older managers too; the ACTION button needs Magisk v28+.
 ## Cutting a release
 
 ```sh
-# update module.prop and CHANGELOG.md (v1.4.0 / NetBird 0.80.0), commit, then:
-git tag v1.4.0
-git push origin main v1.4.0
+# update module.prop and CHANGELOG.md (v1.4.2 / NetBird 0.80.0), commit, then:
+git tag v1.4.2
+git push origin main v1.4.2
 ```
 
 The `Release` workflow downloads the matching official NetBird release for
 each architecture, verifies sha256 against `checksums.txt`, packages the three
 zips, attaches them to the GitHub Release, and refreshes `update/*.json`,
 `update.json` and the release assets. The stamped display version is
-`<tag>-(<NetBird version>)`, e.g. `v1.4.0-(0.80.0)`; the update check itself
+`<tag>-(<NetBird version>)`, e.g. `v1.4.2-(0.80.0)`; the update check itself
 uses `versionCode`. Add the release entry to `CHANGELOG.md` before tagging;
 the workflow uses that authored section as the GitHub Release body and does
 not modify the changelog.
@@ -58,7 +58,7 @@ otherwise the installer falls back to downloading at install time):
 
 ```sh
 zip -r9 magisk-netbird-local.zip META-INF customize.sh module.prop service.sh \
-  uninstall.sh action.sh README.md netbird system
+  uninstall.sh action.sh README.md netbird system webroot
 ```
 
 ## Usage
@@ -92,8 +92,34 @@ traffic, last handshake):
 su -c 'netbird.service peers'
 ```
 
-In the Magisk app (v28+), the module's **ACTION** button runs `action.sh`: it
-refreshes CA bundle, route rules and firewall rules, then prints status.
+In the Magisk app (v28+), or in a KernelSU/APatch manager, the module's
+**ACTION** button runs `action.sh` without arguments: it refreshes the CA bundle,
+route rules and firewall rules, then prints status. `action.sh` also accepts an
+explicit action for root-shell callers:
+
+```sh
+su -c '<module-dir>/action.sh status'
+su -c '<module-dir>/action.sh refresh'
+su -c '<module-dir>/action.sh start'
+su -c '<module-dir>/action.sh stop'
+su -c '<module-dir>/action.sh restart'
+su -c '<module-dir>/action.sh peers'
+su -c '<module-dir>/action.sh log'
+su -c '<module-dir>/action.sh version'
+```
+
+Supported actions are `status`, `refresh`, `start`, `stop`, `restart`, `route`,
+`peers`, `log`, `version`, and `help`. The `log` action prints the latest 200 lines and exits so
+that an ACTION page does not wait forever; use `su -c 'netbird.service log'` for
+continuous log following. Seeing `daemon: stopped` after `stop` is expected and
+does not indicate a failed stop. The same actions can also be invoked directly,
+for example `su -c 'netbird.service peers'`.
+
+KernelSU users can open the module's **WebUI** for an interactive control panel.
+It provides buttons for service control, peer details, bounded logs, version, route
+refresh, and runtime refresh. The WebUI only calls the fixed service actions above;
+it does not accept setup keys or arbitrary shell input. The manager's ACTION button
+remains the short, no-argument refresh-and-status entry point.
 
 ## Configuration
 

@@ -1,0 +1,342 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="color-scheme" content="dark light">
+  <title>NetBird 控制台</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #101418;
+      --panel: #181e24;
+      --panel-strong: #202830;
+      --line: #303a44;
+      --text: #edf2f5;
+      --muted: #a9b4bd;
+      --accent: #63c6bb;
+      --accent-strong: #2a9d91;
+      --warning: #e8b86a;
+      --danger: #e37d72;
+      --shadow: 0 12px 28px rgba(0, 0, 0, .18);
+    }
+
+    @media (prefers-color-scheme: light) {
+      :root {
+        color-scheme: light;
+        --bg: #f2f4f3;
+        --panel: #ffffff;
+        --panel-strong: #e9efed;
+        --line: #d6dfdc;
+        --text: #182126;
+        --muted: #5d6b70;
+        --accent: #197d73;
+        --accent-strong: #12645c;
+        --warning: #8a5d13;
+        --danger: #a33d35;
+        --shadow: 0 12px 28px rgba(31, 54, 50, .08);
+      }
+    }
+
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-width: 280px;
+      background: var(--bg);
+      color: var(--text);
+      font: 15px/1.5 system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    main {
+      width: min(760px, 100%);
+      margin: 0 auto;
+      padding: max(20px, env(safe-area-inset-top)) 16px 28px;
+    }
+
+    header {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 16px;
+      margin-bottom: 18px;
+    }
+
+    h1, h2, p { margin: 0; }
+    h1 { font-size: 24px; line-height: 1.2; letter-spacing: 0; }
+    h2 { font-size: 14px; line-height: 1.3; font-weight: 700; }
+    .eyebrow {
+      margin-bottom: 4px;
+      color: var(--accent);
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 0;
+      text-transform: uppercase;
+    }
+    .muted { color: var(--muted); }
+
+    .status-panel, .section, .output-panel {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--panel);
+      box-shadow: var(--shadow);
+    }
+
+    .status-panel {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 12px;
+      align-items: center;
+      padding: 16px;
+      margin-bottom: 18px;
+    }
+
+    .status-value {
+      margin-top: 4px;
+      font-size: 18px;
+      font-weight: 700;
+    }
+
+    .status-dot {
+      display: inline-block;
+      width: 9px;
+      height: 9px;
+      margin-right: 7px;
+      border-radius: 50%;
+      background: var(--muted);
+      vertical-align: 1px;
+    }
+    .status-dot.running { background: var(--accent); }
+    .status-dot.stopped { background: var(--warning); }
+    .status-dot.error { background: var(--danger); }
+
+    .section { padding: 14px; margin-bottom: 14px; }
+    .section-header {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      align-items: baseline;
+      margin-bottom: 11px;
+    }
+    .section-header span { color: var(--muted); font-size: 12px; }
+
+    .actions {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 9px;
+    }
+
+    button {
+      min-height: 44px;
+      padding: 9px 10px;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      background: var(--panel-strong);
+      color: var(--text);
+      font: inherit;
+      font-weight: 650;
+      cursor: pointer;
+      transition: border-color .15s ease, background .15s ease, transform .1s ease;
+    }
+    button:hover { border-color: var(--accent); }
+    button:active { transform: translateY(1px); }
+    button:disabled { cursor: wait; opacity: .55; }
+    button.primary { border-color: var(--accent-strong); background: var(--accent-strong); color: #fff; }
+    button.danger { color: var(--danger); }
+    button.wide { grid-column: span 2; }
+
+    .output-panel { overflow: hidden; }
+    .output-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 12px 14px;
+      border-bottom: 1px solid var(--line);
+    }
+    .output-header button {
+      min-height: 32px;
+      padding: 5px 9px;
+      font-size: 12px;
+    }
+    pre {
+      min-height: 180px;
+      max-height: 420px;
+      margin: 0;
+      padding: 14px;
+      overflow: auto;
+      color: var(--muted);
+      font: 12px/1.55 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      white-space: pre-wrap;
+      overflow-wrap: anywhere;
+    }
+    .hint { margin-top: 10px; color: var(--muted); font-size: 12px; }
+
+    @media (max-width: 460px) {
+      main { padding-inline: 12px; }
+      header { display: block; }
+      .status-panel { grid-template-columns: 1fr; }
+      .actions { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      button.wide { grid-column: span 2; }
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <header>
+      <div>
+        <p class="eyebrow">NetBird / KernelSU</p>
+        <h1>控制台</h1>
+      </div>
+      <p class="muted" id="last-updated">尚未检查</p>
+    </header>
+
+    <section class="status-panel" aria-live="polite">
+      <div>
+        <p class="muted">Daemon 状态</p>
+        <p class="status-value"><span class="status-dot" id="status-dot"></span><span id="status-text">读取中...</span></p>
+      </div>
+      <button class="primary" data-action="status">刷新状态</button>
+    </section>
+
+    <section class="section">
+      <div class="section-header">
+        <h2>服务控制</h2>
+        <span>会更新模块状态</span>
+      </div>
+      <div class="actions">
+        <button class="primary" data-action="start">启动</button>
+        <button class="danger" data-action="stop" data-confirm="确认停止 NetBird daemon？">停止</button>
+        <button data-action="restart" data-confirm="确认重启 NetBird daemon？">重启</button>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="section-header">
+        <h2>诊断信息</h2>
+        <span>只读输出</span>
+      </div>
+      <div class="actions">
+        <button data-action="peers">Peers</button>
+        <button data-action="log">最近日志</button>
+        <button data-action="version">版本</button>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="section-header">
+        <h2>网络维护</h2>
+        <span>不改变登录配置</span>
+      </div>
+      <div class="actions">
+        <button class="wide" data-action="refresh">刷新规则与证书</button>
+        <button data-action="route">仅刷新路由</button>
+      </div>
+      <p class="hint">加入网络、登录和 setup key 仍通过终端命令执行，页面不会保存或接收密钥。</p>
+    </section>
+
+    <section class="output-panel">
+      <div class="output-header">
+        <h2>命令输出</h2>
+        <button id="clear-output">清空</button>
+      </div>
+      <pre id="output">准备就绪。</pre>
+    </section>
+  </main>
+
+  <script type="module">
+    import { exec, toast } from "./kernelsu.js";
+
+    const SERVICE = "/data/adb/netbird/scripts/netbird.service";
+    const COMMANDS = Object.freeze({
+      status: `${SERVICE} status`,
+      start: `${SERVICE} start`,
+      stop: `${SERVICE} stop`,
+      restart: `${SERVICE} restart`,
+      refresh: `${SERVICE} refresh`,
+      route: `${SERVICE} route`,
+      peers: `${SERVICE} peers`,
+      log: `${SERVICE} log --once`,
+      version: `${SERVICE} version`
+    });
+    const STATUS_ACTIONS = new Set(["start", "stop", "restart", "refresh", "route"]);
+    const buttons = [...document.querySelectorAll("button[data-action]")];
+    const output = document.querySelector("#output");
+    const statusText = document.querySelector("#status-text");
+    const statusDot = document.querySelector("#status-dot");
+    const lastUpdated = document.querySelector("#last-updated");
+
+    function setBusy(busy) {
+      buttons.forEach((button) => { button.disabled = busy; });
+    }
+
+    function appendOutput(title, result) {
+      const parts = [`$ ${title}`];
+      if (result.stdout) parts.push(result.stdout.trimEnd());
+      if (result.stderr) parts.push(`[stderr]\n${result.stderr.trimEnd()}`);
+      if (typeof result.errno === "number") parts.push(`[exit ${result.errno}]`);
+      output.textContent = parts.join("\n") + "\n";
+    }
+
+    function updateStatus(text, errno) {
+      if (text.includes("daemon: running")) {
+        statusText.textContent = "运行中";
+        statusDot.className = "status-dot running";
+      } else if (text.includes("daemon: stopped")) {
+        statusText.textContent = "已停止";
+        statusDot.className = "status-dot stopped";
+      } else if (errno) {
+        statusText.textContent = "检查失败";
+        statusDot.className = "status-dot error";
+      } else {
+        statusText.textContent = "未知";
+        statusDot.className = "status-dot";
+      }
+      lastUpdated.textContent = new Date().toLocaleTimeString();
+    }
+
+    async function readStatus() {
+      const result = await exec(COMMANDS.status);
+      const text = `${result.stdout || ""}\n${result.stderr || ""}`;
+      updateStatus(text, result.errno);
+      return result;
+    }
+
+    async function run(action) {
+      if (!COMMANDS[action]) return;
+      const confirmation = buttons.find((button) => button.dataset.action === action)?.dataset.confirm;
+      if (confirmation && !window.confirm(confirmation)) return;
+
+      setBusy(true);
+      try {
+        const result = await exec(COMMANDS[action]);
+        appendOutput(COMMANDS[action], result);
+        if (STATUS_ACTIONS.has(action)) {
+          const statusResult = await readStatus();
+          const statusTextOutput = `${statusResult.stdout || ""}\n${statusResult.stderr || ""}`.trim();
+          output.textContent += `\n$ ${COMMANDS.status}\n${statusTextOutput}\n`;
+        } else if (action === "status") {
+          updateStatus(`${result.stdout || ""}\n${result.stderr || ""}`, result.errno);
+        }
+        if (result.errno === 0) toast(`${action} 完成`);
+        else if (action !== "status" && action !== "peers") toast(`${action} 执行失败`);
+      } catch (error) {
+        statusText.textContent = "WebUI 不可用";
+        statusDot.className = "status-dot error";
+        output.textContent = String(error);
+      } finally {
+        setBusy(false);
+      }
+    }
+
+    buttons.forEach((button) => button.addEventListener("click", () => run(button.dataset.action)));
+    document.querySelector("#clear-output").addEventListener("click", () => { output.textContent = "准备就绪。"; });
+    readStatus().then((result) => {
+      appendOutput(COMMANDS.status, result);
+    }).catch((error) => {
+      statusText.textContent = "WebUI 不可用";
+      statusDot.className = "status-dot error";
+      output.textContent = String(error);
+    });
+  </script>
+</body>
+</html>

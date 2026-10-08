@@ -38,15 +38,15 @@ Magisk v28+。
 ## 发布新版本
 
 ```sh
-# 更新 module.prop 和 CHANGELOG.md（v1.4.0 / NetBird 0.80.0）并提交，然后：
-git tag v1.4.0
-git push origin main v1.4.0
+# 更新 module.prop 和 CHANGELOG.md（v1.4.2 / NetBird 0.80.0）并提交，然后：
+git tag v1.4.2
+git push origin main v1.4.2
 ```
 
 `Release` 工作流会为每个架构下载对应的官方 NetBird 发布包、用
 `checksums.txt` 校验 sha256、打包三个 zip、附加到 GitHub Release，并在
 `main` 分支上刷新 `update/*.json`、`update.json` 和发布产物。
-写入的显示版本格式为 `<tag>-(<NetBird 版本>)`（如 `v1.4.0-(0.80.0)`），
+写入的显示版本格式为 `<tag>-(<NetBird 版本>)`（如 `v1.4.2-(0.80.0)`），
 更新检测本身以 `versionCode` 为准。发布前先手工在 `CHANGELOG.md` 写好本次
 版本条目，工作流会把该条目作为 GitHub Release 说明，不会自动改写变更日志。
 
@@ -55,7 +55,7 @@ git push origin main v1.4.0
 
 ```sh
 zip -r9 magisk-netbird-local.zip META-INF customize.sh module.prop service.sh \
-  uninstall.sh action.sh README.md netbird system
+  uninstall.sh action.sh README.md netbird system webroot
 ```
 
 ## 使用
@@ -88,8 +88,29 @@ su -c 'netbird.service up --setup-key-file /data/adb/netbird/setup.key --managem
 su -c 'netbird.service peers'
 ```
 
-在 Magisk App（v28+）中，模块的 **ACTION** 按钮会执行 `action.sh`：刷新
-CA 证书包、路由规则和防火墙规则，然后输出状态。
+在 Magisk App（v28+）或 KernelSU/APatch 管理器中，模块的 **ACTION** 按钮无参数执行
+`action.sh`：刷新 CA 证书包、路由规则和防火墙规则，然后输出状态。`action.sh` 也支持
+显式动作，适合从 root shell 调用：
+
+```sh
+su -c '<模块目录>/action.sh status'
+su -c '<模块目录>/action.sh refresh'
+su -c '<模块目录>/action.sh start'
+su -c '<模块目录>/action.sh stop'
+su -c '<模块目录>/action.sh restart'
+su -c '<模块目录>/action.sh peers'
+su -c '<模块目录>/action.sh log'
+su -c '<模块目录>/action.sh version'
+```
+
+可用动作包括 `status`、`refresh`、`start`、`stop`、`restart`、`route`、`peers`、`log`、`version` 和
+`help`。其中 `log` 只输出最近 200 行并退出，避免管理器 ACTION 页面持续等待；持续跟踪日志仍使用
+`su -c 'netbird.service log'`。`stop` 后显示 `daemon: stopped` 是预期结果，不代表停止失败。
+动作也可直接通过 `netbird.service` 调用，例如 `su -c 'netbird.service peers'`。
+
+KernelSU 用户可以打开模块的 **WebUI** 使用交互式控制台，页面提供服务控制、Peers、有限日志、版本、
+路由刷新和运行时刷新按钮。WebUI 只调用上述固定服务动作，不接收 setup key，也不接受任意 shell 输入。
+管理器的 ACTION 按钮仍保持无参数的“刷新规则并显示状态”入口。
 
 ## 配置
 
