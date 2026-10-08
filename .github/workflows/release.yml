@@ -32,15 +32,12 @@ jobs:
           - key: x86_64
             nb_arch: amd64
             bundled: netbird-x86_64
-            zip_name: magisk-netbird-x86_64.zip
           - key: arm64-v8a
             nb_arch: arm64
             bundled: netbird-arm64
-            zip_name: magisk-netbird-arm64-v8a.zip
           - key: armv7
             nb_arch: armv6 # official armv6 build runs on armeabi-v7a
             bundled: netbird-arm
-            zip_name: magisk-netbird-armv7.zip
     steps:
       - uses: actions/checkout@v5
 
@@ -111,17 +108,20 @@ jobs:
           grep -E '^(id|version|versionCode|updateJson)=' module.prop
 
       - name: Package zip
+        id: pkg
         run: |
           set -euo pipefail
-          zip -r9 "${{ matrix.zip_name }}" \
+          ZIP="magisk-netbird-${{ matrix.key }}-${{ steps.ver.outputs.mv }}.zip"
+          zip -r9 "$ZIP" \
             META-INF customize.sh module.prop service.sh uninstall.sh action.sh \
             README.md netbird system webroot
-          unzip -l "${{ matrix.zip_name }}" | grep -E 'netbird/bin/netbird|module.prop$|webroot/index.html$'
+          unzip -l "$ZIP" | grep -E 'netbird/bin/netbird|module.prop$|webroot/index.html$'
+          echo "zip_name=$ZIP" >> "$GITHUB_OUTPUT"
 
       - uses: actions/upload-artifact@v5
         with:
           name: ${{ matrix.key }}
-          path: ${{ matrix.zip_name }}
+          path: ${{ steps.pkg.outputs.zip_name }}
           if-no-files-found: error
 
   release:
@@ -155,30 +155,47 @@ jobs:
           body_path: release-notes.md
           generate_release_notes: false
 
-      - name: Refresh update manifests
+  # Auto-generate update/*.json + update.json on main after a release.
+  # Runs in its own job checked out from main (not the tag) so the push is
+  # always a fast-forward and nothing needs to be edited by hand.
+  manifest:
+    if: startsWith(github.ref, 'refs/tags/')
+    needs: [build, release]
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: main
+
+      - name: Generate update manifests
         run: |
           set -euo pipefail
           MV='${{ needs.build.outputs.mv }}'
           VC='${{ needs.build.outputs.vc }}'
-          NB='${{ needs.build.outputs.nb }}'
           DISP='${{ needs.build.outputs.display }}'
+          TAG='${{ github.ref_name }}'
           RAW="https://raw.githubusercontent.com/${GITHUB_REPOSITORY}/main"
-          ZIP_BASE="https://github.com/${GITHUB_REPOSITORY}/releases/latest/download"
+          ZIP_BASE="https://github.com/${GITHUB_REPOSITORY}/releases/download/${TAG}"
           CL="${RAW}/CHANGELOG.md"
           mkdir -p update
           for KEY in x86_64 arm64-v8a armv7; do
             jq -n --arg v "$DISP" --argjson vc "$VC" \
-              --arg z "$ZIP_BASE/magisk-netbird-${KEY}.zip" --arg c "$CL" \
+              --arg z "$ZIP_BASE/magisk-netbird-${KEY}-${MV}.zip" --arg c "$CL" \
               '{version: $v, versionCode: $vc, zipUrl: $z, changelog: $c}' \
               > "update/update-${KEY}.json"
           done
           # Legacy manifest for installs of the old v1.0.x line (single-arch, arm64)
           jq -n --arg v "$DISP" --argjson vc "$VC" \
-            --arg z "$ZIP_BASE/magisk-netbird-arm64-v8a.zip" --arg c "$CL" \
+            --arg z "$ZIP_BASE/magisk-netbird-arm64-v8a-${MV}.zip" --arg c "$CL" \
             '{version: $v, versionCode: $vc, zipUrl: $z, changelog: $c}' \
             > update.json
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add update.json update/
-          git diff --cached --quiet || git commit -m "chore: update manifests for ${MV}"
-          git push origin HEAD:main || echo "::warning::could not push manifest refresh to main"
+          if git diff --cached --quiet; then
+            echo "update manifests already up to date"
+          else
+            git commit -m "chore: update manifests for ${MV}"
+            git pull --rebase origin main
+            git push origin HEAD:main
+          fi

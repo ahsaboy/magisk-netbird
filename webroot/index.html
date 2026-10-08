@@ -44,8 +44,10 @@
 
     * { box-sizing: border-box; }
     html, body {
+      height: 100%;
       overscroll-behavior: none;
     }
+    html { overflow: hidden; }
     body {
       margin: 0;
       min-width: 280px;
@@ -53,10 +55,17 @@
       color: var(--text);
       font: 14px/1.45 system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
     }
-    button, input, select { font: inherit; }
+    button, input, select { font: inherit; -webkit-tap-highlight-color: transparent; }
     button { cursor: pointer; }
-    button:disabled { cursor: wait; opacity: .55; }
-    main { width: min(820px, 100%); margin: 0 auto; padding: max(18px, env(safe-area-inset-top)) 14px 28px; }
+    button:disabled { cursor: wait; }
+    main {
+      width: 100%;
+      height: 100%;
+      padding: max(18px, env(safe-area-inset-top)) 14px 28px;
+      overflow-y: auto;
+      overscroll-behavior-y: none;
+    }
+    main > * { width: min(792px, 100%); margin-inline: auto; }
     h1, h2, h3, p { margin: 0; }
     h1 { font-size: 24px; line-height: 1.15; letter-spacing: 0; }
     h2 { font-size: 15px; line-height: 1.25; letter-spacing: 0; }
@@ -77,11 +86,9 @@
       color: var(--text);
       font-weight: 650;
     }
-    .button:hover, .tab:hover { border-color: var(--accent); }
     .button.primary { border-color: var(--accent-strong); background: var(--accent-strong); color: #fff; }
     .button.danger { border-color: color-mix(in srgb, var(--danger) 55%, var(--line)); color: var(--danger); }
     .button.compact { min-height: 32px; padding: 5px 8px; font-size: 12px; }
-    .button:active, .tab:active { transform: translateY(1px); }
 
     .hero, .panel, .notice {
       border: 1px solid var(--line);
@@ -148,8 +155,8 @@
 
     @media (max-width: 560px) {
       main { padding-inline: 11px; }
-      .topbar { align-items: stretch; }
-      .top-actions { flex-direction: column; align-items: stretch; }
+      .topbar { align-items: flex-start; }
+      .top-actions { flex-wrap: wrap; justify-content: flex-end; }
       .top-actions .button, .language-select { min-height: 34px; }
       .metric-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
       .actions { grid-template-columns: repeat(2, minmax(0, 1fr)); }
@@ -178,7 +185,6 @@
           <option value="zh" data-i18n="languageZh">中文</option>
           <option value="en" data-i18n="languageEn">English</option>
         </select>
-        <button class="button compact" data-service="refresh" data-confirm-key="confirmRefresh">刷新运行时</button>
         <button class="button compact" data-service="restart" data-confirm-key="confirmRestart">重启</button>
       </div>
     </header>
@@ -302,19 +308,19 @@
     const I18N = {
       zh: {
         title: "控制台", overview: "概览", peers: "Peers", networks: "Networks", diagnostics: "诊断", languageZh: "中文", languageEn: "English", sections: "NetBird 分区",
-        running: "运行中", stopped: "已停止", checking: "读取中", loadingStatus: "正在读取 NetBird 状态", checkFailed: "检查失败", unknown: "未知", idle: "空闲", connecting: "连接中",
+        running: "运行中", stopped: "已停止", checking: "读取中", loadingStatus: "正在读取 NetBird 状态", checkFailed: "检查失败", idle: "空闲", connecting: "连接中",
         statusUnavailable: "无法连接到 NetBird daemon", daemon: "NetBird daemon", connected: "已连接", disconnected: "未连接", domainsLabel: "域名", resolvedIpsLabel: "解析 IP",
         noPeers: "暂无 Peers，或 daemon 尚未连接。", noNetworks: "暂无 Networks / Routes", noForwarding: "没有转发规则",
-        refresh: "刷新", refreshRuntime: "刷新运行时", restart: "重启", start: "启动", stop: "停止", startDaemon: "启动 daemon", stopDaemon: "停止 daemon", restartDaemon: "重启 daemon", refreshRules: "刷新规则", refreshRoute: "刷新路由", viewVersion: "查看版本",
-        connection: "连接详情", serviceOps: "服务操作", noLoginChange: "不会修改登录配置", peerConnections: "对端连接", networksRoutes: "Networks / Routes", forwarding: "转发规则", health: "健康检查", versionState: "版本与状态存储", structured: "结构化摘要", readVersion: "读取版本", readState: "读取状态项", readProfiles: "读取 Profiles", switchProfile: "切换 Profile", profilePlaceholder: "Profile 名称", selectProfile: "切换 Profile", noDiagnostic: "选择一个诊断项", noState: "没有状态存储项", noProfiles: "没有 Profiles", versionUnavailable: "版本不可用", check: "检查", passed: "通过", notChecked: "未检查", routeHint: "启用单个 Network 会追加到当前选择，不会清除其他已选路由。显示 0.0.0.0/0 或 ::/0 时，它是管理端提供的出口路由；出口节点本身仍由管理端配置。", acceptAll: "接受全部", deselectAll: "停用全部", selected: "已启用", notSelected: "未启用", enable: "启用", disable: "停用", noData: "暂无数据", updated: "已更新", operationDone: "操作已完成", networkUpdated: "Network 选择已更新", profileUpdated: "Profile 已切换", language: "语言选择", secondsCooldown: "刚刚更新，5 秒后可再次刷新", confirmStart: "确认启动 NetBird daemon？", confirmStop: "确认停止 NetBird daemon？", confirmRestart: "确认重启 NetBird daemon？", confirmRefresh: "确认刷新 NetBird 运行时规则和证书？", confirmRoute: "确认刷新 Android 路由规则？", confirmDeselectAll: "确认停用全部 Network？", confirmDeselectPrefix: "确认停用 Network", confirmDeselectSuffix: "？", confirmProfile: "确认切换 Profile？", invalid: "操作参数无效", connectionLabel: "连接", latencyLabel: "延迟", rxLabel: "RX", txLabel: "TX", fqdnLabel: "FQDN", ipv4Label: "IPv4", ipv6Label: "IPv6", interfaceLabel: "Interface", portLabel: "WireGuard port", daemonVersionLabel: "Daemon version", managementLabel: "Management", signalLabel: "Signal"
+        refresh: "刷新", restart: "重启", start: "启动", stop: "停止", startDaemon: "启动 daemon", stopDaemon: "停止 daemon", restartDaemon: "重启 daemon", refreshRules: "刷新规则", refreshRoute: "刷新路由", viewVersion: "查看版本",
+        connection: "连接详情", serviceOps: "服务操作", noLoginChange: "不会修改登录配置", peerConnections: "对端连接", networksRoutes: "Networks / Routes", forwarding: "转发规则", health: "健康检查", versionState: "版本与状态存储", structured: "结构化摘要", readVersion: "读取版本", readState: "读取状态项", readProfiles: "读取 Profiles", profilePlaceholder: "Profile 名称", selectProfile: "切换 Profile", noDiagnostic: "选择一个诊断项", noState: "没有状态存储项", noProfiles: "没有 Profiles", versionUnavailable: "版本不可用", check: "检查", passed: "通过", notChecked: "未检查", routeHint: "启用单个 Network 会追加到当前选择，不会清除其他已选路由。显示 0.0.0.0/0 或 ::/0 时，它是管理端提供的出口路由；出口节点本身仍由管理端配置。", acceptAll: "接受全部", deselectAll: "停用全部", selected: "已启用", notSelected: "未启用", enable: "启用", disable: "停用", noData: "暂无数据", updated: "已更新", operationDone: "操作已完成", networkUpdated: "Network 选择已更新", profileUpdated: "Profile 已切换", language: "语言选择", secondsCooldown: "刚刚更新，5 秒后可再次刷新", confirmStart: "确认启动 NetBird daemon？", confirmStop: "确认停止 NetBird daemon？", confirmRestart: "确认重启 NetBird daemon？", confirmRefresh: "确认刷新 NetBird 运行时规则和证书？", confirmRoute: "确认刷新 Android 路由规则？", confirmDeselectAll: "确认停用全部 Network？", confirmDeselectPrefix: "确认停用 Network", confirmDeselectSuffix: "？", confirmProfile: "确认切换 Profile？", connectionLabel: "连接", latencyLabel: "延迟", rxLabel: "RX", txLabel: "TX", fqdnLabel: "FQDN", ipv4Label: "IPv4", ipv6Label: "IPv6", interfaceLabel: "Interface", portLabel: "WireGuard port", daemonVersionLabel: "Daemon version", managementLabel: "Management", signalLabel: "Signal"
       },
       en: {
         title: "Console", overview: "Overview", peers: "Peers", networks: "Networks", diagnostics: "Diagnostics", languageZh: "Chinese", languageEn: "English", sections: "NetBird sections",
-        running: "Running", stopped: "Stopped", checking: "Loading", loadingStatus: "Reading NetBird status", checkFailed: "Check failed", unknown: "Unknown", idle: "Idle", connecting: "Connecting",
+        running: "Running", stopped: "Stopped", checking: "Loading", loadingStatus: "Reading NetBird status", checkFailed: "Check failed", idle: "Idle", connecting: "Connecting",
         statusUnavailable: "NetBird daemon is unavailable", daemon: "NetBird daemon", connected: "Connected", disconnected: "Disconnected", domainsLabel: "Domains", resolvedIpsLabel: "Resolved IPs",
         noPeers: "No peers, or the daemon is not connected.", noNetworks: "No networks or routes", noForwarding: "No forwarding rules",
-        refresh: "Refresh", refreshRuntime: "Refresh runtime", restart: "Restart", start: "Start", stop: "Stop", startDaemon: "Start daemon", stopDaemon: "Stop daemon", restartDaemon: "Restart daemon", refreshRules: "Refresh rules", refreshRoute: "Refresh routes", viewVersion: "View version",
-        connection: "Connection details", serviceOps: "Service actions", noLoginChange: "Login settings are unchanged", peerConnections: "Peer connections", networksRoutes: "Networks / Routes", forwarding: "Forwarding rules", health: "Health checks", versionState: "Version and state", structured: "Structured summary", readVersion: "Read version", readState: "Read state", readProfiles: "Read profiles", switchProfile: "Switch profile", profilePlaceholder: "Profile name", selectProfile: "Switch profile", noDiagnostic: "Choose a diagnostic item", noState: "No stored state items", noProfiles: "No profiles", versionUnavailable: "Version unavailable", check: "Check", passed: "Passed", notChecked: "Not checked", routeHint: "Selecting one network appends it to the current selection. 0.0.0.0/0 or ::/0 is an exit route supplied by the management service; the exit peer itself is configured there.", acceptAll: "Accept all", deselectAll: "Disable all", selected: "Selected", notSelected: "Not selected", enable: "Enable", disable: "Disable", noData: "No data", updated: "Updated", operationDone: "Operation completed", networkUpdated: "Network selection updated", profileUpdated: "Profile switched", language: "Language", secondsCooldown: "Updated recently; refresh available in 5 seconds", confirmStart: "Start the NetBird daemon?", confirmStop: "Stop the NetBird daemon?", confirmRestart: "Restart the NetBird daemon?", confirmRefresh: "Refresh NetBird runtime rules and certificates?", confirmRoute: "Refresh Android route rules?", confirmDeselectAll: "Disable all networks?", confirmDeselectPrefix: "Disable network", confirmDeselectSuffix: "?", confirmProfile: "Switch profile?", invalid: "Invalid operation parameters", connectionLabel: "Connection", latencyLabel: "Latency", rxLabel: "RX", txLabel: "TX", fqdnLabel: "FQDN", ipv4Label: "IPv4", ipv6Label: "IPv6", interfaceLabel: "Interface", portLabel: "WireGuard port", daemonVersionLabel: "Daemon version", managementLabel: "Management", signalLabel: "Signal"
+        refresh: "Refresh", restart: "Restart", start: "Start", stop: "Stop", startDaemon: "Start daemon", stopDaemon: "Stop daemon", restartDaemon: "Restart daemon", refreshRules: "Refresh rules", refreshRoute: "Refresh routes", viewVersion: "View version",
+        connection: "Connection details", serviceOps: "Service actions", noLoginChange: "Login settings are unchanged", peerConnections: "Peer connections", networksRoutes: "Networks / Routes", forwarding: "Forwarding rules", health: "Health checks", versionState: "Version and state", structured: "Structured summary", readVersion: "Read version", readState: "Read state", readProfiles: "Read profiles", profilePlaceholder: "Profile name", selectProfile: "Switch profile", noDiagnostic: "Choose a diagnostic item", noState: "No stored state items", noProfiles: "No profiles", versionUnavailable: "Version unavailable", check: "Check", passed: "Passed", notChecked: "Not checked", routeHint: "Selecting one network appends it to the current selection. 0.0.0.0/0 or ::/0 is an exit route supplied by the management service; the exit peer itself is configured there.", acceptAll: "Accept all", deselectAll: "Disable all", selected: "Selected", notSelected: "Not selected", enable: "Enable", disable: "Disable", noData: "No data", updated: "Updated", operationDone: "Operation completed", networkUpdated: "Network selection updated", profileUpdated: "Profile switched", language: "Language", secondsCooldown: "Updated recently; refresh available in 5 seconds", confirmStart: "Start the NetBird daemon?", confirmStop: "Stop the NetBird daemon?", confirmRestart: "Restart the NetBird daemon?", confirmRefresh: "Refresh NetBird runtime rules and certificates?", confirmRoute: "Refresh Android route rules?", confirmDeselectAll: "Disable all networks?", confirmDeselectPrefix: "Disable network", confirmDeselectSuffix: "?", confirmProfile: "Switch profile?", connectionLabel: "Connection", latencyLabel: "Latency", rxLabel: "RX", txLabel: "TX", fqdnLabel: "FQDN", ipv4Label: "IPv4", ipv6Label: "IPv6", interfaceLabel: "Interface", portLabel: "WireGuard port", daemonVersionLabel: "Daemon version", managementLabel: "Management", signalLabel: "Signal"
       }
     };
     const savedLanguage = localStorage.getItem("netbird.language");
@@ -322,7 +328,7 @@
     let language = savedLanguage || (systemLanguage.startsWith("en") ? "en" : "zh");
     function t(key) { return I18N[language][key] || I18N.zh[key] || key; }
     const STATIC_TEXT = {
-      "控制台": "title", "概览": "overview", "诊断": "diagnostics", "刷新运行时": "refreshRuntime", "重启": "restart", "启动": "start", "停止": "stop", "启动 daemon": "startDaemon", "停止 daemon": "stopDaemon", "重启 daemon": "restartDaemon", "刷新规则": "refreshRules", "刷新路由": "refreshRoute", "查看版本": "viewVersion", "刷新": "refresh", "连接详情": "connection", "服务操作": "serviceOps", "不会修改登录配置": "noLoginChange", "对端连接": "peerConnections", "Networks / Routes": "networksRoutes", "路由选择": "networksRoutes", "转发规则": "forwarding", "健康检查": "health", "版本与状态存储": "versionState", "结构化摘要": "structured", "读取版本": "readVersion", "读取状态项": "readState", "读取 Profiles": "readProfiles", "切换 Profile": "selectProfile", "诊断": "diagnostics", "接受全部": "acceptAll", "停用全部": "deselectAll", "读取中...": "checking", "选择一个诊断项": "noDiagnostic", "配置中的敏感字段会隐藏": "noData"
+      "控制台": "title", "概览": "overview", "诊断": "diagnostics", "重启": "restart", "启动": "start", "停止": "stop", "启动 daemon": "startDaemon", "停止 daemon": "stopDaemon", "重启 daemon": "restartDaemon", "刷新规则": "refreshRules", "刷新路由": "refreshRoute", "查看版本": "viewVersion", "刷新": "refresh", "连接详情": "connection", "服务操作": "serviceOps", "不会修改登录配置": "noLoginChange", "对端连接": "peerConnections", "Networks / Routes": "networksRoutes", "转发规则": "forwarding", "健康检查": "health", "版本与状态存储": "versionState", "结构化摘要": "structured", "读取版本": "readVersion", "读取状态项": "readState", "读取 Profiles": "readProfiles", "切换 Profile": "selectProfile", "接受全部": "acceptAll", "停用全部": "deselectAll", "读取中...": "checking", "选择一个诊断项": "noDiagnostic"
     };
     Object.entries(I18N.zh).forEach(([key, value]) => { if (typeof value === "string") STATIC_TEXT[value] = key; });
     Object.entries(I18N.en).forEach(([key, value]) => { if (typeof value === "string") STATIC_TEXT[value] = key; });
@@ -518,6 +524,15 @@
       if (tab.dataset.tab === "networks") { load("networks"); load("forwarding"); }
       if (tab.dataset.tab === "peers") load("status");
     }));
+    document.addEventListener("keydown", (event) => {
+      if (event.target !== document.body) return;
+      const scroller = document.querySelector("main");
+      const page = scroller.clientHeight * 0.9;
+      const delta = { ArrowDown: 60, ArrowUp: -60, PageDown: page, PageUp: -page, Home: -Infinity, End: Infinity, " ": event.shiftKey ? -page : page }[event.key];
+      if (delta === undefined) return;
+      event.preventDefault();
+      scroller.scrollTop += delta;
+    });
     $$('[data-service]').forEach((button) => button.addEventListener("click", () => serviceAction(button.dataset.service, button.dataset.confirm)));
     $$('[data-load]').forEach((button) => button.addEventListener("click", () => load(button.dataset.load)));
     $$('[data-health]').forEach((button) => button.addEventListener("click", () => healthCheck(button.dataset.health)));
