@@ -174,9 +174,9 @@ jobs:
           VC='${{ needs.build.outputs.vc }}'
           DISP='${{ needs.build.outputs.display }}'
           TAG='${{ github.ref_name }}'
-          RAW="https://raw.githubusercontent.com/${GITHUB_REPOSITORY}/main"
+          CDN="https://cdn.jsdelivr.net/gh/${GITHUB_REPOSITORY}@main"
           ZIP_BASE="https://github.com/${GITHUB_REPOSITORY}/releases/download/${TAG}"
-          CL="${RAW}/CHANGELOG.md"
+          CL="${CDN}/CHANGELOG.md"
           mkdir -p update
           for KEY in x86_64 arm64-v8a armv7; do
             jq -n --arg v "$DISP" --argjson vc "$VC" \
