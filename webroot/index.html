@@ -185,7 +185,6 @@
           <option value="zh" data-i18n="languageZh">中文</option>
           <option value="en" data-i18n="languageEn">English</option>
         </select>
-        <button class="button compact" data-service="restart" data-confirm-key="confirmRestart">重启</button>
       </div>
     </header>
 
@@ -197,10 +196,6 @@
             <div class="hero-state" id="daemon-state" data-i18n="checking">读取中</div>
             <div class="hero-meta" id="daemon-meta" data-i18n="loadingStatus">正在读取 NetBird 状态</div>
           </div>
-        </div>
-        <div class="section-actions">
-          <button class="button primary" data-service="start" data-confirm-key="confirmStart">启动</button>
-          <button class="button danger" data-service="stop" data-confirm-key="confirmStop">停止</button>
         </div>
       </div>
       <div class="metric-grid">
@@ -226,11 +221,8 @@
         <dl class="state-grid" id="connection-details"><div class="loading">读取中...</div></dl>
       </div>
       <div class="panel">
-        <div class="panel-head"><h2>服务操作</h2><span class="small">不会修改登录配置</span></div>
+        <div class="panel-head"><h2 data-i18n="runtimeOps">运行时操作</h2><span class="small" data-i18n="actionHint">启动和停止请使用模块 ACTION</span></div>
         <div class="actions">
-          <button class="button primary" data-service="start" data-confirm-key="confirmStart">启动 daemon</button>
-          <button class="button danger" data-service="stop" data-confirm-key="confirmStop">停止 daemon</button>
-          <button class="button" data-service="restart" data-confirm-key="confirmRestart">重启 daemon</button>
           <button class="button" data-service="refresh" data-confirm-key="confirmRefresh">刷新规则</button>
           <button class="button" data-service="route" data-confirm-key="confirmRoute">刷新路由</button>
           <button class="button" data-load="version">查看版本</button>
@@ -308,7 +300,7 @@
     const I18N = {
       zh: {
         title: "控制台", overview: "概览", peers: "Peers", networks: "Networks", diagnostics: "诊断", languageZh: "中文", languageEn: "English", sections: "NetBird 分区",
-        running: "运行中", stopped: "已停止", checking: "读取中", loadingStatus: "正在读取 NetBird 状态", checkFailed: "检查失败", idle: "空闲", connecting: "连接中",
+        running: "运行中", stopped: "已停止", checking: "读取中", loadingStatus: "正在读取 NetBird 状态", checkFailed: "检查失败", idle: "空闲", connecting: "连接中", runtimeOps: "运行时操作", actionHint: "启动和停止请使用模块 ACTION",
         statusUnavailable: "无法连接到 NetBird daemon", daemon: "NetBird daemon", connected: "已连接", disconnected: "未连接", domainsLabel: "域名", resolvedIpsLabel: "解析 IP",
         noPeers: "暂无 Peers，或 daemon 尚未连接。", noNetworks: "暂无 Networks / Routes", noForwarding: "没有转发规则",
         refresh: "刷新", restart: "重启", start: "启动", stop: "停止", startDaemon: "启动 daemon", stopDaemon: "停止 daemon", restartDaemon: "重启 daemon", refreshRules: "刷新规则", refreshRoute: "刷新路由", viewVersion: "查看版本",
@@ -316,7 +308,7 @@
       },
       en: {
         title: "Console", overview: "Overview", peers: "Peers", networks: "Networks", diagnostics: "Diagnostics", languageZh: "Chinese", languageEn: "English", sections: "NetBird sections",
-        running: "Running", stopped: "Stopped", checking: "Loading", loadingStatus: "Reading NetBird status", checkFailed: "Check failed", idle: "Idle", connecting: "Connecting",
+        running: "Running", stopped: "Stopped", checking: "Loading", loadingStatus: "Reading NetBird status", checkFailed: "Check failed", idle: "Idle", connecting: "Connecting", runtimeOps: "Runtime actions", actionHint: "Use the module ACTION to start or stop",
         statusUnavailable: "NetBird daemon is unavailable", daemon: "NetBird daemon", connected: "Connected", disconnected: "Disconnected", domainsLabel: "Domains", resolvedIpsLabel: "Resolved IPs",
         noPeers: "No peers, or the daemon is not connected.", noNetworks: "No networks or routes", noForwarding: "No forwarding rules",
         refresh: "Refresh", restart: "Restart", start: "Start", stop: "Stop", startDaemon: "Start daemon", stopDaemon: "Stop daemon", restartDaemon: "Restart daemon", refreshRules: "Refresh rules", refreshRoute: "Refresh routes", viewVersion: "View version",

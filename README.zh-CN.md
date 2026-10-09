@@ -88,9 +88,9 @@ su -c 'netbird.service up --setup-key-file /data/adb/netbird/setup.key --managem
 su -c 'netbird.service peers'
 ```
 
-在 Magisk App（v28+）或 KernelSU/APatch 管理器中，模块的 **ACTION** 按钮无参数执行
-`action.sh`：刷新 CA 证书包、路由规则和防火墙规则，然后输出状态。`action.sh` 也支持
-显式动作，适合从 root shell 调用：
+在 Magisk App（v28+）或 KernelSU/APatch 管理器中，点击模块的 **ACTION** 按钮会无参数执行
+`action.sh`，随后等待音量键选择：音量上键启动 NetBird，音量下键停止 NetBird。`action.sh`
+也支持显式动作，适合从 root shell 调用：
 
 ```sh
 su -c '<模块目录>/action.sh status'
@@ -104,17 +104,19 @@ su -c '<模块目录>/action.sh version'
 ```
 
 可用动作包括 `status`、`refresh`、`start`、`stop`、`restart`、`route`、`peers`、`log`、`version` 和
-`help`。其中 `log` 只输出最近 200 行并退出，避免管理器 ACTION 页面持续等待；持续跟踪日志仍使用
-`su -c 'netbird.service log'`。`stop` 后显示 `daemon: stopped` 是预期结果，不代表停止失败。
-动作也可直接通过 `netbird.service` 调用，例如 `su -c 'netbird.service peers'`。
+`help`。需要非交互地刷新状态时使用显式的 `status` 动作。其中 `log` 只输出最近 200 行并退出，避免管理器
+ACTION 页面持续等待；持续跟踪日志仍使用 `su -c 'netbird.service log'`。`stop` 后显示
+`daemon: stopped` 是预期结果，不代表停止失败。动作也可直接通过 `netbird.service` 调用，例如
+`su -c 'netbird.service peers'`。
 
 KernelSU 用户可以打开模块的 **WebUI** 使用移动端优先的控制台。页面会把 status JSON
 解析为连接卡片和 Peers 列表，并分开展示 Peers、Networks/Routes、转发规则、健康检查、版本、状态存储、
 Profiles。Network 选择使用固定的 `networks select`/`deselect` 动作，单个
 Network 的启用会追加到当前选择。`0.0.0.0/0` 或 `::/0` 表示管理端提供的出口路由，出口节点本身不由本模块选择。
 
-WebUI 不接收 setup key，也不接受任意 shell 命令。页面不展示原始日志，重点提供解析后的状态、Peers、
-路由、健康检查、Profile 和状态信息。右上角语言选择器支持中文和 English，首次打开跟随系统语言，
+WebUI 不接收 setup key，也不接受任意 shell 命令。WebUI 不负责启动、停止或重启 daemon；这些生命周期操作
+统一通过模块 ACTION 或开机服务完成。页面不展示原始日志，重点提供解析后的状态、Peers、路由、健康检查、
+Profile 和状态信息。右上角语言选择器支持中文和 English，首次打开跟随系统语言，
 用户选择会持久化。点击 Peers 或 Networks 会立即切换页面，再静默刷新数据；同一数据源 5 秒内不会重复执行
 root 命令。管理器的 ACTION 按钮仍保持无参数的“刷新规则并显示状态”入口。
 

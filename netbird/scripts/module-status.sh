@@ -106,7 +106,7 @@ status_json() {
 }
 
 daemon_responsive() {
-  if command -v busybox >/dev/null2>&1; then
+  if command -v busybox >/dev/null 2>&1; then
     busybox timeout 10 netbird --daemon-addr "$NB_DAEMON_ADDR" status >/dev/null 2>&1
   else
     netbird --daemon-addr "$NB_DAEMON_ADDR" status >/dev/null 2>&1

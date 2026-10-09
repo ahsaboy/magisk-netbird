@@ -93,8 +93,8 @@ su -c 'netbird.service peers'
 ```
 
 In the Magisk app (v28+), or in a KernelSU/APatch manager, the module's
-**ACTION** button runs `action.sh` without arguments: it refreshes the CA bundle,
-route rules and firewall rules, then prints status. `action.sh` also accepts an
+**ACTION** button runs `action.sh` without arguments. It prompts for a volume key:
+Volume Up starts NetBird and Volume Down stops it. `action.sh` also accepts an
 explicit action for root-shell callers:
 
 ```sh
@@ -109,11 +109,12 @@ su -c '<module-dir>/action.sh version'
 ```
 
 Supported actions are `status`, `refresh`, `start`, `stop`, `restart`, `route`,
-`peers`, `log`, `version`, and `help`. The `log` action prints the latest 200 lines and exits so
-that an ACTION page does not wait forever; use `su -c 'netbird.service log'` for
-continuous log following. Seeing `daemon: stopped` after `stop` is expected and
-does not indicate a failed stop. The same actions can also be invoked directly,
-for example `su -c 'netbird.service peers'`.
+`peers`, `log`, `version`, and `help`. Use the explicit `status` action when a
+non-interactive status refresh is needed. The `log` action prints the latest 200 lines
+and exits so that an ACTION page does not wait forever; use
+`su -c 'netbird.service log'` for continuous log following. Seeing
+`daemon: stopped` after `stop` is expected and does not indicate a failed stop. The
+same actions can also be invoked directly, for example `su -c 'netbird.service peers'`.
 
 KernelSU users can open the module's **WebUI** for a mobile-first control panel.
 The page parses status JSON into connection cards and peer rows, and provides separate
@@ -123,9 +124,10 @@ fixed `networks select`/`deselect` actions; selecting one route appends to the c
 selection. A `0.0.0.0/0` or `::/0` entry is an exit route supplied by the management
 service, while the exit peer itself is not selected by this module.
 
-The WebUI does not accept setup keys or arbitrary shell commands. It keeps raw log output
-out of the interface and focuses on parsed status, peer, route, health, profile, and
-state information. The top-right language selector supports Chinese and English,
+The WebUI does not accept setup keys or arbitrary shell commands. It does not start,
+stop, or restart the daemon; those lifecycle operations are handled by the module
+ACTION or boot service. It keeps raw log output out of the interface and focuses on
+parsed status, peer, route, health, profile, and state information. The top-right language selector supports Chinese and English,
 follows the system language on first launch, and persists the user's choice. Switching
 between Peers and Networks changes the view immediately; data refreshes silently with a
 five-second cooldown to avoid repeated root commands. The manager's ACTION button

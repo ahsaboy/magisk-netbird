@@ -1,5 +1,10 @@
 # Changelog
 
+## v1.4.6 — NetBird v0.80.0
+
+- Moved daemon start/stop selection to the module ACTION button with bilingual Volume Up/Down prompts, keeping the WebUI read-only for daemon lifecycle operations.
+- Fixed watchdog BusyBox detection and documented the WebUI cgroup workaround.
+
 ## v1.4.5 — NetBird v0.80.0
 
 - Streamlined the mobile WebUI with parsed route domains/resolved IPs, automatic peer traffic units, bilingual controls, quieter visuals, and disabled global overscroll stretch.

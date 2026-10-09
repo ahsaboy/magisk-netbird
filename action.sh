@@ -1,7 +1,7 @@
 #!/system/bin/sh
-# Executed by a module manager's ACTION button. With no argument this keeps
-# the original behavior: refresh runtime rules and show daemon status.
-# Explicit actions are also supported for shell callers:
+# Executed by a module manager's ACTION button. With no argument, Volume Up
+# starts NetBird and Volume Down stops it. Explicit actions are also supported
+# for shell callers:
 # action.sh {status|refresh|start|stop|restart|route|peers|log|version|help}
 
 MODDIR=${0%/*}
@@ -18,6 +18,33 @@ fi
 show_status() {
   "$SVC" status
   return "$?"
+}
+
+choose_action() {
+  echo "NetBird ACTION"
+  echo "Volume Up (音量上键)   - Start (启动) NetBird"
+  echo "Volume Down (音量下键) - Stop (停止) NetBird"
+  echo "Press a volume key to continue... (请按音量键继续...)"
+
+  # getevent observes input events without consuming them. Match only the
+  # key-down event so the corresponding key-up event cannot trigger twice.
+  selected_action="$(
+    getevent -ql 2>/dev/null |
+      awk '
+        /EV_KEY[[:space:]]+KEY_VOLUMEUP[[:space:]]+(DOWN|1)/ { print "start"; exit }
+        /EV_KEY[[:space:]]+KEY_VOLUMEDOWN[[:space:]]+(DOWN|1)/ { print "stop"; exit }
+      '
+  )"
+  case "$selected_action" in
+    start|stop)
+      run_action "$selected_action"
+      return "$?"
+      ;;
+    *)
+      echo "No volume key was detected."
+      return 1
+      ;;
+  esac
 }
 
 run_action() {
@@ -58,7 +85,8 @@ run_action() {
       cat <<'EOF'
 Usage: action.sh [status|refresh|start|stop|restart|route|peers|log|version|help]
 
-With no action, refreshes runtime rules and prints daemon status.
+With no action, Volume Up starts NetBird and Volume Down stops it.
+Use `action.sh status` to refresh runtime rules and print daemon status.
 The log action prints the latest entries and exits; service log keeps following.
 EOF
       ;;
@@ -70,5 +98,9 @@ EOF
   esac
 }
 
-run_action "${1:-status}"
+if [ "$#" -eq 0 ]; then
+  choose_action
+else
+  run_action "$1"
+fi
 exit "$?"
