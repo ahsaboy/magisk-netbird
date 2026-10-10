@@ -41,6 +41,25 @@ jobs:
     steps:
       - uses: actions/checkout@v5
 
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: ui/package-lock.json
+
+      - name: Test and build WebUI
+        run: |
+          npm ci --prefix ui
+          npm test --prefix ui
+          npm run build --prefix ui
+          test -s webroot/index.html
+          test -s webroot/assets/netbird.js
+          test -s webroot/assets/netbird.css
+          if grep -RniE '(^|[^[:alnum:]_])vant([^[:alnum:]_]|$)|--van-[[:alnum:]_-]+|\.van-[[:alnum:]_-]+|fonts\.googleapis\.com' webroot/assets/netbird.js webroot/assets/netbird.css; then
+            echo "::error::Vant or a remote font reference remains in the WebUI bundle"
+            exit 1
+          fi
+
       - name: Resolve versions
         id: ver
         run: |
