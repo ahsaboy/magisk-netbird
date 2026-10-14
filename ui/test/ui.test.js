@@ -207,6 +207,61 @@ describe("mobile WebUI", () => {
     expect(commands.some((command) => command.endsWith("webui networks-deselect 'all'"))).toBe(true);
   });
 
+  it("keeps the newest diagnostic response when requests finish out of order", async () => {
+    const pending = [];
+    window.ksu.exec = (command, _options, callbackName) => {
+      commands.push(command);
+      if (command.endsWith("webui status")) {
+        window[callbackName](0, JSON.stringify({ daemonStatus: "running", peers: [] }), "");
+      } else {
+        pending.push({ command, complete: (stdout) => window[callbackName](0, stdout, "") });
+      }
+    };
+    await mountApp();
+    await openTab("diagnostics");
+    await findButton("读取版本").trigger("click");
+    await findButton("读取状态").trigger("click");
+    expect(pending).toHaveLength(2);
+
+    pending.find((request) => request.command.endsWith("webui state")).complete("newest state result");
+    await flushPromises();
+    pending.find((request) => request.command.endsWith("webui version")).complete("stale version result");
+    await flushPromises();
+    expect(wrapper.text()).toContain("newest state result");
+    expect(wrapper.text()).not.toContain("stale version result");
+  });
+
+  it("shows forwarding errors and a loading state while retrying", async () => {
+    let forwardingAttempts = 0;
+    let completeRetry;
+    window.ksu.exec = (command, _options, callbackName) => {
+      commands.push(command);
+      if (command.endsWith("webui forwarding")) {
+        forwardingAttempts += 1;
+        if (forwardingAttempts === 1) {
+          window[callbackName](2, "", "forwarding unavailable");
+        } else {
+          completeRetry = (errno, stdout, stderr) => window[callbackName](errno, stdout, stderr);
+        }
+      } else {
+        window[callbackName](0, "", "");
+      }
+    };
+    await mountApp();
+    await openTab("networks");
+    expect(wrapper.text()).toContain("forwarding unavailable");
+    expect(wrapper.text()).not.toContain("没有转发规则");
+
+    const forwardingSection = wrapper.findAll(".section-card").find((section) => section.text().includes("转发规则"));
+    await findButton("重试", forwardingSection).trigger("click");
+    await nextTick();
+    expect(wrapper.text()).toContain("读取中");
+    expect(wrapper.text()).not.toContain("没有转发规则");
+    completeRetry(0, "tcp 0.0.0.0:9000 -> 100.64.0.2:90", "");
+    await flushPromises();
+    expect(wrapper.text()).toContain("tcp 0.0.0.0:9000 -> 100.64.0.2:90");
+  });
+
   it("checks health, reads diagnostics, and confirms Profile changes", async () => {
     await mountApp();
     await openTab("diagnostics");

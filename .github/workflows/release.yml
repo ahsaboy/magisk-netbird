@@ -46,8 +46,10 @@ jobs:
           TAG="${GITHUB_REF_NAME}"
           BASE="${TAG%%-(*}"
           V="${BASE#v}"
-          MAJ="${V%%.*}"; R="${V#*.}"; MIN="${R%%.*}"; PAT="${R#*.}"; PAT="${PAT%%.*}"
-          case "$MAJ$MIN$PAT" in ''|*[!0-9]*) echo "::error::tag '$TAG' is not vX.Y.Z"; exit 1 ;; esac
+          STABLE_VERSION="${V%%-*}"
+          MAJ="${STABLE_VERSION%%.*}"; R="${STABLE_VERSION#*.}"; MIN="${R%%.*}"; PAT="${R#*.}"
+          case "$MAJ$MIN$PAT" in ''|*[!0-9]*) echo "::error::tag '$TAG' is not vX.Y.Z or vX.Y.Z-prerelease"; exit 1 ;; esac
+          BASE="v${STABLE_VERSION}"
           VC="$(grep '^versionCode=' module/module.prop | cut -d= -f2)"
           case "$VC" in ''|*[!0-9]*) echo "::error::module/module.prop has invalid versionCode"; exit 1 ;; esac
           {
@@ -135,9 +137,10 @@ jobs:
             --arg z "$ZIP_URL" --arg c "$CHANGELOG" \
             '{version: $v, versionCode: $vc, zipUrl: $z, changelog: $c}' \
             > module/update.json
+          cp module/update.json update.json
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add module/update.json module/update/
+          git add update.json module/update.json module/update/
           if git diff --cached --quiet; then
             echo "update manifests already up to date"
           else

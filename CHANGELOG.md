@@ -1,5 +1,11 @@
 # Changelog
 
+## v1.4.7 — NetBird v0.80.0
+
+- Adapted packaging to the KernelSU Modules repository layout and publish one validated universal ZIP for arm64-v8a, armv7, and x86_64.
+- Preserved the root update manifest for legacy installs and extended release version parsing to accept prerelease tags.
+- Prevented stale diagnostic responses from replacing newer results; forwarding failures now show an error and retry state.
+
 ## v1.4.6 — NetBird v0.80.0
 
 - Moved daemon start/stop selection to the module ACTION button with bilingual Volume Up/Down prompts, keeping the WebUI read-only for daemon lifecycle operations.

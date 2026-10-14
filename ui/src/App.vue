@@ -73,6 +73,7 @@ const lastLoaded = new Map();
 const model = ref({ daemon: "error", fqdn: "-", ip: "-", ipv6: "-", management: "-", signal: "-", interfaceType: "-", port: "-", version: "-", total: "-", connected: "-", peers: [] });
 const networkItems = ref([]);
 const forwardingItems = ref([]);
+const forwardingError = ref("");
 const diagnosticItems = ref([]);
 const diagnosticLoading = ref("");
 const profileName = ref("");
@@ -82,6 +83,7 @@ const confirmMessage = ref("");
 const pendingAction = ref(null);
 let touchStartX = 0;
 let touchStartY = 0;
+let diagnosticRequestId = 0;
 const statusLabel = computed(() => statusLoading.value ? t("checking") : model.value.daemon === "running" ? t("running") : model.value.daemon === "stopped" ? t("stopped") : t("failed"));
 const connectedCount = computed(() => model.value.connected !== "-" ? model.value.connected : model.value.peers.filter((peer) => String(firstValue(peer, ["status", "state"])).toLowerCase().includes("connected")).length);
 
@@ -117,11 +119,18 @@ async function load(action, force = false) {
   const now = Date.now();
   if (!force && now - (lastLoaded.get(action) || 0) < 5000) { tell(t("recentlyUpdated")); return false; }
   lastLoaded.set(action, now);
-  if (["version", "state", "profiles"].includes(action)) diagnosticLoading.value = action;
+  const isDiagnostic = ["version", "state", "profiles"].includes(action);
+  const requestId = isDiagnostic ? ++diagnosticRequestId : 0;
+  if (isDiagnostic) diagnosticLoading.value = action;
+  if (action === "forwarding") {
+    forwardingError.value = "";
+    forwardingLoaded.value = false;
+  }
   try {
     if (action === "status") await loadStatus();
     else {
       const result = throwOnError(await runRead(action));
+      if (isDiagnostic && requestId !== diagnosticRequestId) return false;
       if (action === "networks") { networkItems.value = parseNetworks(result.stdout); networksLoaded.value = true; }
       else if (action === "forwarding") { forwardingItems.value = parseLines(result.stdout, t("noForwarding")); forwardingLoaded.value = true; }
       else if (action === "version") showDiagnostic(result.stdout || t("versionUnavailable"));
@@ -130,12 +139,17 @@ async function load(action, force = false) {
     }
     return true;
   } catch (error) {
+    if (isDiagnostic && requestId !== diagnosticRequestId) return false;
     if (action === "networks") networksLoaded.value = true;
-    if (action === "forwarding") forwardingLoaded.value = true;
+    if (action === "forwarding") {
+      forwardingItems.value = [];
+      forwardingLoaded.value = true;
+      forwardingError.value = error.message;
+    }
     tell(error.message, "fail");
     return false;
   } finally {
-    if (["version", "state", "profiles"].includes(action) && diagnosticLoading.value === action) diagnosticLoading.value = "";
+    if (isDiagnostic && requestId === diagnosticRequestId) diagnosticLoading.value = "";
   }
 }
 function parseLines(value, emptyLabel) {
@@ -377,6 +391,7 @@ onMounted(() => load("status", true));
           <section class="section-card">
             <div class="section-heading"><div><span class="section-kicker">FORWARDING</span><h2>{{ t('forwarding') }}</h2></div><Button variant="ghost" size="sm" :disabled="busy" @click="load('forwarding', true)"><RefreshCw :size="14" />{{ t('refresh') }}</Button></div>
             <div v-if="!forwardingItems.length && !forwardingLoaded" class="empty-state" role="status"><LoaderCircle class="animate-spin" :size="18" /><p>{{ t('checking') }}</p></div>
+            <div v-else-if="forwardingError" class="empty-state" role="alert"><p>{{ forwardingError }}</p><Button variant="ghost" size="sm" @click="load('forwarding', true)">{{ t('retry') }}</Button></div>
             <template v-else-if="forwardingItems.length"><div v-for="(item, index) in forwardingItems" :key="index" class="plain-row">{{ item }}</div></template>
             <div v-else class="empty-state"><p>{{ t('noForwarding') }}</p></div>
           </section>
