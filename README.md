@@ -48,7 +48,7 @@ binaries for all supported architectures, verifies their SHA256 checksums,
 then validates and publishes the contents of `module/` with the
 KernelSU Modules release action. It also refreshes the Magisk update manifests
 with the universal ZIP URL. `module/module.prop` is the source of `versionCode`;
-the workflow stamps the display version as `<tag>-(<NetBird version>)`.
+the workflow stamps the display version as `<tag>-<NetBird version>`.
 Tags containing `-` are published as prereleases.
 
 The repository follows the KernelSU Modules layout: `module/` is the complete

@@ -44,7 +44,7 @@ git push origin main v1.4.7
 工作流会测试并构建 WebUI，下载所有支持架构的官方 NetBird 二进制并校验
 SHA256，然后使用 KernelSU Modules release action 校验并发布 `module/` 内容。
 发布后也会刷新 Magisk 更新清单，使其指向通用 ZIP。`module/module.prop` 是
-`versionCode` 的唯一来源；工作流会把显示版本写成 `<tag>-(<NetBird 版本>)`，
+`versionCode` 的唯一来源；工作流会把显示版本写成 `<tag>-<NetBird 版本>`，
 包含 `-` 的 tag 会发布为预发布版本。
 
 仓库采用 KernelSU Modules 目录规范：`module/` 是完整可安装模块根目录，

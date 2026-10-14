@@ -54,10 +54,10 @@ jobs:
           case "$VC" in ''|*[!0-9]*) echo "::error::module/module.prop has invalid versionCode"; exit 1 ;; esac
           {
             echo "nb=$NB"
-            echo "display=${BASE}-(${NB})"
+            echo "display=${BASE}-${NB}"
             echo "version_code=$VC"
           } >> "$GITHUB_OUTPUT"
-          sed -i "s|^version=.*|version=${BASE}-(${NB})|" module/module.prop
+          sed -i "s|^version=.*|version=${BASE}-${NB}|" module/module.prop
           echo "Building ${BASE} with NetBird ${NB} (versionCode ${VC})"
 
       - name: Download and verify official NetBird binaries
