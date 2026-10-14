@@ -4,7 +4,7 @@
 *.json text eol=lf
 *.yaml text eol=lf
 *.yml text eol=lf
-META-INF/** text eol=lf
+module/META-INF/** text eol=lf
 # Extensionless scripts (netbird.service, module-status.sh, cert-trust.sh, start.sh, update-binary)
-netbird/scripts/* text eol=lf
-webroot/* text eol=lf
+module/netbird/scripts/* text eol=lf
+module/webroot/* text eol=lf

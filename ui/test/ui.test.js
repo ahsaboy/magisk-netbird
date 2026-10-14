@@ -70,7 +70,7 @@ function findButton(label, root = wrapper) {
 describe("mobile WebUI", () => {
   it("renders the local NetBird wordmark and four mobile destinations", async () => {
     await mountApp();
-    expect(wrapper.get(".brand-mark svg").attributes("viewBox")).toBe("0 0 133 23");
+    expect(wrapper.get(".brand-mark svg").attributes("viewBox")).toBe("0 0 40 23");
     expect(wrapper.text()).toContain("运行中");
     expect(wrapper.text()).toContain("100.64.0.2");
     expect(wrapper.findAll("[data-tab]")).toHaveLength(4);

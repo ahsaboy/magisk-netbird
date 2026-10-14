@@ -15,7 +15,7 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { runAction, runRead } from "./api.js";
-import { firstValue, formatBytes, parseNetworks, statusModel } from "../../webroot/view-model.mjs";
+import { firstValue, formatBytes, parseNetworks, statusModel } from "../../module/webroot/view-model.mjs";
 import { messages } from "./i18n.js";
 
 const savedLanguage = localStorage.getItem("netbird.language");

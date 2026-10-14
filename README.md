@@ -25,41 +25,37 @@ DNS management is disabled by default when joining with `netbird.service up`.
 
 | Zip | Devices |
 | --- | --- |
-| `magisk-netbird-arm64-v8a.zip` | arm64-v8a (most modern phones) |
-| `magisk-netbird-armv7.zip` | 32-bit ARM (armeabi-v7a) |
-| `magisk-netbird-x86_64.zip` | x86_64 (emulators, some Chromebooks) |
+| `magisk-netbird-<version>.zip` | arm64-v8a, armeabi-v7a, and x86_64 |
 
 Latest release: <https://github.com/ahsaboy/magisk-netbird/releases/latest>
 
-Every install stamps a per-architecture `updateJson` into `module.prop`
-(`update/update-<arch>.json`), so the Magisk app shows an
-**update available** banner after a new release. The banner works in
-Kitsune and older managers too; the ACTION button needs Magisk v28+.
+The release ZIP contains all three NetBird binaries and installs on arm64-v8a,
+32-bit ARM, and x86_64. Each install stamps its architecture-specific Magisk
+update manifest (`module/update/update-<arch>.json`) into `module.prop`, while
+the manifest points to the universal release ZIP. The banner works in Kitsune
+and older managers too; the ACTION button needs Magisk v28+.
 
 ## Cutting a release
 
 ```sh
-# update module.prop and CHANGELOG.md (v1.4.5 / NetBird 0.80.0), commit, then:
-git tag v1.4.5
-git push origin main v1.4.5
+# Increase versionCode in module/module.prop, update CHANGELOG.md, commit, then:
+git tag v1.4.7
+git push origin main v1.4.7
 ```
 
-The `Release` workflow downloads the matching official NetBird release for
-each architecture, verifies sha256 against `checksums.txt`, packages the three
-zips, attaches them to the GitHub Release, and refreshes `update/*.json`,
-`update.json` and the release assets. The stamped display version is
-`<tag>-(<NetBird version>)`, e.g. `v1.4.5-(0.80.0)`; the update check itself
-uses `versionCode`. Add the release entry to `CHANGELOG.md` before tagging;
-the workflow uses that authored section as the GitHub Release body and does
-not modify the changelog.
+The workflow tests and builds the WebUI, downloads the official NetBird
+binaries for all supported architectures, verifies their SHA256 checksums,
+then validates and publishes the contents of `module/` with the
+KernelSU Modules release action. It also refreshes the Magisk update manifests
+with the universal ZIP URL. `module/module.prop` is the source of `versionCode`;
+the workflow stamps the display version as `<tag>-(<NetBird version>)`.
+Tags containing `-` are published as prereleases.
 
-Local packaging without CI (needs `netbird/bin/netbird-<arch>` in place,
-otherwise the installer falls back to downloading at install time):
-
-```sh
-zip -r9 magisk-netbird-local.zip META-INF customize.sh module.prop service.sh \
-  uninstall.sh action.sh README.md netbird system webroot
-```
+The repository follows the KernelSU Modules layout: `module/` is the complete
+installable module root, `module.yaml` contains catalog metadata, and the
+release action generates and validates the ZIP. For a local package, run
+`cd module && zip -r9 ../magisk-netbird-local.zip .` after placing the three
+architecture binaries in `module/netbird/bin/`.
 
 ## Usage
 

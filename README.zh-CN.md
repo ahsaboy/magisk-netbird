@@ -24,39 +24,33 @@ NetBird CLI 常驻进程的精简 Magisk 模块封装。为三种架构打包官
 
 | 压缩包 | 适用设备 |
 | --- | --- |
-| `magisk-netbird-arm64-v8a.zip` | arm64-v8a（大多数现代手机） |
-| `magisk-netbird-armv7.zip` | 32 位 ARM（armeabi-v7a） |
-| `magisk-netbird-x86_64.zip` | x86_64（模拟器、部分 Chromebook） |
+| `magisk-netbird-<version>.zip` | arm64-v8a、armeabi-v7a 和 x86_64 |
 
 最新发布：<https://github.com/ahsaboy/magisk-netbird/releases/latest>
 
-每次安装都会把对应架构的 `updateJson` 写入 `module.prop`
-（`update/update-<arch>.json`），因此新版本发布后 Magisk App 会显示
-**发现新版本**横幅。Kitsune 和旧版管理器同样支持该横幅；ACTION 按钮需要
-Magisk v28+。
+发布 ZIP 内含三种架构的 NetBird 二进制，可安装于 arm64-v8a、32 位 ARM
+和 x86_64。安装时会把对应架构的 Magisk 更新清单
+（`module/update/update-<arch>.json`）写入 `module.prop`，清单指向通用发布 ZIP。
+Kitsune 和旧版管理器同样支持更新横幅；ACTION 按钮需要 Magisk v28+。
 
 ## 发布新版本
 
 ```sh
-# 更新 module.prop 和 CHANGELOG.md（v1.4.5 / NetBird 0.80.0）并提交，然后：
-git tag v1.4.5
-git push origin main v1.4.5
+# 增加 module/module.prop 中的 versionCode，更新 CHANGELOG.md 并提交，然后：
+git tag v1.4.7
+git push origin main v1.4.7
 ```
 
-`Release` 工作流会为每个架构下载对应的官方 NetBird 发布包、用
-`checksums.txt` 校验 sha256、打包三个 zip、附加到 GitHub Release，并在
-`main` 分支上刷新 `update/*.json`、`update.json` 和发布产物。
-写入的显示版本格式为 `<tag>-(<NetBird 版本>)`（如 `v1.4.5-(0.80.0)`），
-更新检测本身以 `versionCode` 为准。发布前先手工在 `CHANGELOG.md` 写好本次
-版本条目，工作流会把该条目作为 GitHub Release 说明，不会自动改写变更日志。
+工作流会测试并构建 WebUI，下载所有支持架构的官方 NetBird 二进制并校验
+SHA256，然后使用 KernelSU Modules release action 校验并发布 `module/` 内容。
+发布后也会刷新 Magisk 更新清单，使其指向通用 ZIP。`module/module.prop` 是
+`versionCode` 的唯一来源；工作流会把显示版本写成 `<tag>-(<NetBird 版本>)`，
+包含 `-` 的 tag 会发布为预发布版本。
 
-不走 CI 的本地打包（需要先放置 `netbird/bin/netbird-<arch>`，否则安装脚本
-会在安装时回退为在线下载）：
-
-```sh
-zip -r9 magisk-netbird-local.zip META-INF customize.sh module.prop service.sh \
-  uninstall.sh action.sh README.md netbird system webroot
-```
+仓库采用 KernelSU Modules 目录规范：`module/` 是完整可安装模块根目录，
+`module.yaml` 保存模块目录元数据，由 release action 生成并校验 ZIP。本地打包时，
+先将三个架构的二进制放入 `module/netbird/bin/`，再执行
+`cd module && zip -r9 ../magisk-netbird-local.zip .`。
 
 ## 使用
 

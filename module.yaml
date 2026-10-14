@@ -1,0 +1,19 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/KernelSU-Modules/tools/main/schemas/module.schema.json
+schemaVersion: 1
+id: magisk-netbird
+name: Magisk NetBird
+summary: NetBird mesh VPN client for rooted Android devices
+description: README.md
+homepage: https://github.com/ahsaboy/magisk-netbird
+support: https://github.com/ahsaboy/magisk-netbird/issues
+tags: [network, vpn, tools]
+icon: assets/icon.png
+metamodule: false
+authors:
+  - name: ahsaboy
+    url: https://github.com/ahsaboy
+compatibility:
+  androidMinApi: 23
+  architectures: [arm64-v8a, armeabi-v7a, x86_64]
+release:
+  assetPattern: "magisk-netbird-*.zip"

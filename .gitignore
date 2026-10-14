@@ -5,7 +5,7 @@ node_modules/
 ui/.vite/
 
 # Binaries (per-arch, populated at build time)
-netbird/bin/
+module/netbird/bin/
 
 # IDE
 .idea/

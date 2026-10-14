@@ -3,41 +3,16 @@ name: Release
 on:
   push:
     tags: ['v*']
-  workflow_dispatch:
-    inputs:
-      netbird_version:
-        description: 'NetBird version (e.g. 0.80.0; empty = latest)'
-        required: false
-        default: ''
-      module_version:
-        description: 'Module version (e.g. v1.4.0; empty = tag or module.prop)'
-        required: false
-        default: ''
-
 permissions:
   contents: write
 
 jobs:
-  build:
+  release:
     runs-on: ubuntu-24.04
     outputs:
-      nb: ${{ steps.ver.outputs.nb }}
-      mv: ${{ steps.ver.outputs.mv }}
-      vc: ${{ steps.ver.outputs.vc }}
-      display: ${{ steps.ver.outputs.display }}
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - key: x86_64
-            nb_arch: amd64
-            bundled: netbird-x86_64
-          - key: arm64-v8a
-            nb_arch: arm64
-            bundled: netbird-arm64
-          - key: armv7
-            nb_arch: armv6 # official armv6 build runs on armeabi-v7a
-            bundled: netbird-arm
+      asset_name: ${{ steps.release.outputs.asset-name }}
+      display_version: ${{ steps.ver.outputs.display }}
+      version_code: ${{ steps.ver.outputs.version_code }}
     steps:
       - uses: actions/checkout@v5
 
@@ -52,10 +27,10 @@ jobs:
           npm ci --prefix ui
           npm test --prefix ui
           npm run build --prefix ui
-          test -s webroot/index.html
-          test -s webroot/assets/netbird.js
-          test -s webroot/assets/netbird.css
-          if grep -RniE '(^|[^[:alnum:]_])vant([^[:alnum:]_]|$)|--van-[[:alnum:]_-]+|\.van-[[:alnum:]_-]+|fonts\.googleapis\.com' webroot/assets/netbird.js webroot/assets/netbird.css; then
+          test -s module/webroot/index.html
+          test -s module/webroot/assets/netbird.js
+          test -s module/webroot/assets/netbird.css
+          if grep -RniE '(^|[^[:alnum:]_])vant([^[:alnum:]_]|$)|--van-[[:alnum:]_-]+|\.van-[[:alnum:]_-]+|fonts\.googleapis\.com' module/webroot/assets/netbird.js module/webroot/assets/netbird.css; then
             echo "::error::Vant or a remote font reference remains in the WebUI bundle"
             exit 1
           fi
@@ -64,157 +39,109 @@ jobs:
         id: ver
         run: |
           set -euo pipefail
-          NB="${{ inputs.netbird_version }}"
-          if [ -z "$NB" ]; then
-            NB="$(curl -fsSL -H "Accept: application/vnd.github+json" \
-              -H "Authorization: Bearer ${{ github.token }}" \
-              https://api.github.com/repos/netbirdio/netbird/releases/latest |
-              jq -r '.tag_name' | sed 's/^v//')"
-          fi
+          NB="$(curl -fsSL -H "Accept: application/vnd.github+json" \
+            -H "Authorization: Bearer ${{ github.token }}" \
+            https://api.github.com/repos/netbirdio/netbird/releases/latest | jq -r '.tag_name' | sed 's/^v//')"
           case "$NB" in ''|null) echo "::error::cannot resolve latest NetBird version"; exit 1 ;; esac
-          MV="${{ inputs.module_version }}"
-          if [ -z "$MV" ]; then
-            case "$GITHUB_REF" in
-              refs/tags/*) MV="$GITHUB_REF_NAME" ;;
-              *) MV="$(grep '^version=' module.prop | cut -d= -f2)" ;;
-            esac
-          fi
-          # versionCode convention: major*10000 + minor*100 + patch (v1.2.0 -> 10200).
-          # module.prop's version= carries a display suffix like "-(0.79.0)"; parse the bare x.y.z.
-          BASE="${MV%%-(*}"
+          TAG="${GITHUB_REF_NAME}"
+          BASE="${TAG%%-(*}"
           V="${BASE#v}"
           MAJ="${V%%.*}"; R="${V#*.}"; MIN="${R%%.*}"; PAT="${R#*.}"; PAT="${PAT%%.*}"
-          case "$MAJ$MIN$PAT" in
-            ''|*[!0-9]*) echo "::error::module version '$BASE' is not x.y.z"; exit 1 ;;
-          esac
-          VC=$(( 10#$MAJ * 10000 + 10#$MIN * 100 + 10#$PAT ))
+          case "$MAJ$MIN$PAT" in ''|*[!0-9]*) echo "::error::tag '$TAG' is not vX.Y.Z"; exit 1 ;; esac
+          VC="$(grep '^versionCode=' module/module.prop | cut -d= -f2)"
+          case "$VC" in ''|*[!0-9]*) echo "::error::module/module.prop has invalid versionCode"; exit 1 ;; esac
           {
             echo "nb=$NB"
-            echo "mv=$BASE"
-            echo "vc=$VC"
-            echo "display=$BASE-($NB)"
+            echo "display=${BASE}-(${NB})"
+            echo "version_code=$VC"
           } >> "$GITHUB_OUTPUT"
-          echo "NetBird v$NB | module $BASE (versionCode $VC) | arch ${{ matrix.key }}"
+          sed -i "s|^version=.*|version=${BASE}-(${NB})|" module/module.prop
+          echo "Building ${BASE} with NetBird ${NB} (versionCode ${VC})"
 
-      - name: Download official NetBird binary (sha256 verified)
+      - name: Download and verify official NetBird binaries
+        env:
+          NETBIRD_VERSION: ${{ steps.ver.outputs.nb }}
         run: |
           set -euo pipefail
-          NB='${{ steps.ver.outputs.nb }}'
-          A='${{ matrix.nb_arch }}'
-          BASE="https://github.com/netbirdio/netbird/releases/download/v${NB}"
-          F="netbird_${NB}_linux_${A}.tar.gz"
-          curl -fL --retry 3 -o "$F" "$BASE/$F"
-          curl -fL --retry 3 -o checksums.txt "$BASE/netbird_${NB}_checksums.txt"
-          WANT="$(awk -v f="$F" '$2 == f { print $1 }' checksums.txt)"
-          GOT="$(sha256sum "$F" | awk '{ print $1 }')"
-          if [ -z "$WANT" ] || [ "$WANT" != "$GOT" ]; then
-            echo "::error::sha256 verification failed for $F (want=$WANT got=$GOT)"
-            exit 1
-          fi
-          echo "sha256 OK: $F"
-          mkdir -p nbtmp
-          tar -xzf "$F" -C nbtmp
-          BIN="$(find nbtmp -type f -name netbird | head -n 1)"
-          if [ -z "$BIN" ]; then echo "::error::netbird binary not found in archive"; exit 1; fi
-          mkdir -p netbird/bin
-          install -m 755 "$BIN" "netbird/bin/${{ matrix.bundled }}"
+          BASE="https://github.com/netbirdio/netbird/releases/download/v${NETBIRD_VERSION}"
+          mkdir -p module/netbird/bin
+          for ARCH in amd64 arm64 armv6; do
+            FILE="netbird_${NETBIRD_VERSION}_linux_${ARCH}.tar.gz"
+            curl -fL --retry 3 -o "$FILE" "$BASE/$FILE"
+            curl -fL --retry 3 -o netbird_checksums.txt "$BASE/netbird_${NETBIRD_VERSION}_checksums.txt"
+            WANT="$(awk -v f="$FILE" '$2 == f { print $1 }' netbird_checksums.txt)"
+            GOT="$(sha256sum "$FILE" | awk '{ print $1 }')"
+            if [ -z "$WANT" ] || [ "$WANT" != "$GOT" ]; then
+              echo "::error::sha256 verification failed for $FILE (want=$WANT got=$GOT)"
+              exit 1
+            fi
+            mkdir -p "extract-$ARCH"
+            tar -xzf "$FILE" -C "extract-$ARCH"
+            BIN="$(find "extract-$ARCH" -type f -name netbird | head -n 1)"
+            if [ -z "$BIN" ]; then echo "::error::netbird binary not found in $FILE"; exit 1; fi
+            case "$ARCH" in
+              amd64) DEST=netbird-x86_64 ;;
+              arm64) DEST=netbird-arm64 ;;
+              armv6) DEST=netbird-arm ;;
+            esac
+            install -m 755 "$BIN" "module/netbird/bin/$DEST"
+          done
 
-      - name: Stamp module.prop
-        run: |
-          set -euo pipefail
-          sed -i "s|^version=.*|version=${{ steps.ver.outputs.display }}|" module.prop
-          sed -i "s|^versionCode=.*|versionCode=${{ steps.ver.outputs.vc }}|" module.prop
-          grep -E '^(id|version|versionCode|updateJson)=' module.prop
-
-      - name: Package zip
-        id: pkg
-        run: |
-          set -euo pipefail
-          ZIP="magisk-netbird-${{ matrix.key }}-${{ steps.ver.outputs.mv }}.zip"
-          zip -r9 "$ZIP" \
-            META-INF customize.sh module.prop service.sh uninstall.sh action.sh \
-            README.md netbird system webroot
-          unzip -l "$ZIP" | grep -E 'netbird/bin/netbird|module.prop$|webroot/index.html$'
-          echo "zip_name=$ZIP" >> "$GITHUB_OUTPUT"
-
-      - uses: actions/upload-artifact@v5
+      - name: Publish validated module release
+        id: release
+        uses: KernelSU-Modules/tools/actions/module-release@e0ac1a6193e698beac3c2fc47dec88d180efca8a
         with:
-          name: ${{ matrix.key }}
-          path: ${{ steps.pkg.outputs.zip_name }}
-          if-no-files-found: error
+          module-dir: module
+          prerelease: ${{ contains(github.ref_name, '-') }}
+          generate-release-notes: true
 
-  release:
+      - name: Report release
+        env:
+          ASSET_NAME: ${{ steps.release.outputs.asset-name }}
+          SHA256: ${{ steps.release.outputs.sha256 }}
+          RELEASE_URL: ${{ steps.release.outputs.release-url }}
+        run: |
+          echo "Published ${ASSET_NAME}"
+          echo "sha256 ${SHA256}"
+          echo "${RELEASE_URL}"
+
+  manifests:
     if: startsWith(github.ref, 'refs/tags/')
-    needs: build
-    runs-on: ubuntu-24.04
-    steps:
-      - uses: actions/checkout@v5
-
-      - uses: actions/download-artifact@v5
-        with:
-          merge-multiple: true
-          path: dist
-
-      - name: Prepare release notes
-        run: |
-          set -euo pipefail
-          MV='${{ needs.build.outputs.mv }}'
-          awk -v heading="## ${MV} " '
-            index($0, heading) == 1 { found=1; print; next }
-            found && /^## / { exit }
-            found { print }
-            END { if (!found) exit 1 }
-          ' CHANGELOG.md > release-notes.md
-          test -s release-notes.md
-
-      - name: Publish release assets
-        uses: softprops/action-gh-release@v2
-        with:
-          files: dist/*.zip
-          body_path: release-notes.md
-          generate_release_notes: false
-
-  # Auto-generate update/*.json + update.json on main after a release.
-  # Runs in its own job checked out from main (not the tag) so the push is
-  # always a fast-forward and nothing needs to be edited by hand.
-  manifest:
-    if: startsWith(github.ref, 'refs/tags/')
-    needs: [build, release]
+    needs: release
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v5
         with:
           ref: main
 
-      - name: Generate update manifests
+      - name: Update Magisk manifests
+        env:
+          ASSET_NAME: ${{ needs.release.outputs.asset_name }}
+          VERSION: ${{ needs.release.outputs.display_version }}
+          VERSION_CODE: ${{ needs.release.outputs.version_code }}
+          TAG: ${{ github.ref_name }}
         run: |
           set -euo pipefail
-          MV='${{ needs.build.outputs.mv }}'
-          VC='${{ needs.build.outputs.vc }}'
-          DISP='${{ needs.build.outputs.display }}'
-          TAG='${{ github.ref_name }}'
-          CDN="https://cdn.jsdelivr.net/gh/${GITHUB_REPOSITORY}@main"
-          ZIP_BASE="https://github.com/${GITHUB_REPOSITORY}/releases/download/${TAG}"
-          CL="${CDN}/CHANGELOG.md"
-          mkdir -p update
+          ZIP_URL="https://github.com/${GITHUB_REPOSITORY}/releases/download/${TAG}/${ASSET_NAME}"
+          CHANGELOG="https://cdn.jsdelivr.net/gh/${GITHUB_REPOSITORY}@main/CHANGELOG.md"
+          mkdir -p module/update
           for KEY in x86_64 arm64-v8a armv7; do
-            jq -n --arg v "$DISP" --argjson vc "$VC" \
-              --arg z "$ZIP_BASE/magisk-netbird-${KEY}-${MV}.zip" --arg c "$CL" \
+            jq -n --arg v "$VERSION" --argjson vc "$VERSION_CODE" \
+              --arg z "$ZIP_URL" --arg c "$CHANGELOG" \
               '{version: $v, versionCode: $vc, zipUrl: $z, changelog: $c}' \
-              > "update/update-${KEY}.json"
+              > "module/update/update-${KEY}.json"
           done
-          # Legacy manifest for installs of the old v1.0.x line (single-arch, arm64)
-          jq -n --arg v "$DISP" --argjson vc "$VC" \
-            --arg z "$ZIP_BASE/magisk-netbird-arm64-v8a-${MV}.zip" --arg c "$CL" \
+          jq -n --arg v "$VERSION" --argjson vc "$VERSION_CODE" \
+            --arg z "$ZIP_URL" --arg c "$CHANGELOG" \
             '{version: $v, versionCode: $vc, zipUrl: $z, changelog: $c}' \
-            > update.json
+            > module/update.json
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add update.json update/
+          git add module/update.json module/update/
           if git diff --cached --quiet; then
             echo "update manifests already up to date"
           else
-            git commit -m "chore: update manifests for ${MV}"
+            git commit -m "chore: update manifests for ${TAG}"
             git pull --rebase origin main
             git push origin HEAD:main
           fi

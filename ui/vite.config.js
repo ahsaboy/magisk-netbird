@@ -13,7 +13,7 @@ export default defineConfig({
     fs: { allow: [".."] }
   },
   build: {
-    outDir: "../webroot",
+    outDir: "../module/webroot",
     emptyOutDir: false,
     assetsDir: "assets",
     rollupOptions: {

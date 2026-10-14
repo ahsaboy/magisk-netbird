@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { daemonValue, formatBytes, parseNetworks, statusModel } from "../../webroot/view-model.mjs";
+import { daemonValue, formatBytes, parseNetworks, statusModel } from "../../module/webroot/view-model.mjs";
 
 test("daemon states normalize booleans and connection strings", () => {
   assert.equal(daemonValue({ daemonStatus: "running" }), "running");
