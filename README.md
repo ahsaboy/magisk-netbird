@@ -6,7 +6,6 @@
 
 <p align="center">
   <img alt="Release" src="https://img.shields.io/github/v/release/ahsaboy/magisk-netbird?logo=git&logoColor=white">
-  <img alt="CI" src="https://img.shields.io/github/actions/workflow/status/ahsaboy/magisk-netbird/release.yml?branch=main&label=CI&logo=githubactions&logoColor=white">
   <img alt="Downloads" src="https://img.shields.io/github/downloads/ahsaboy/magisk-netbird/total?logo=github&logoColor=white">
   <img alt="NetBird" src="https://img.shields.io/github/v/release/netbirdio/netbird?label=NetBird">
   <img alt="Magisk" src="https://img.shields.io/badge/Magisk-%E2%89%A520.4-green?logo=magisk&logoColor=white">
@@ -16,8 +15,7 @@
 <p align="center"><b><a href="README.md">English</a> · <a href="README.zh-CN.md">中文</a></b></p>
 
 Minimal Magisk module wrapper for the NetBird CLI daemon. Official NetBird
-binaries (currently v0.80.0) are bundled for three architectures and packaged
-by GitHub Actions.
+binaries (currently v0.80.0) are bundled for three architectures.
 
 DNS management is disabled by default when joining with `netbird.service up`.
 
@@ -30,40 +28,16 @@ DNS management is disabled by default when joining with `netbird.service up`.
 Latest release: <https://github.com/ahsaboy/magisk-netbird/releases/latest>
 
 The release ZIP contains all three NetBird binaries and installs on arm64-v8a,
-32-bit ARM, and x86_64. Each install stamps its architecture-specific Magisk
-update manifest (`module/update/update-<arch>.json`) into `module.prop`, while
-the manifest points to the universal release ZIP. The banner works in Kitsune
-and older managers too; the ACTION button needs Magisk v28+.
-
-## Cutting a release
-
-```sh
-# Increase versionCode in module/module.prop, update CHANGELOG.md, commit, then:
-git tag v1.4.7
-git push origin main v1.4.7
-```
-
-The workflow tests and builds the WebUI, downloads the official NetBird
-binaries for all supported architectures, verifies their SHA256 checksums,
-then validates and publishes the contents of `module/` with the
-KernelSU Modules release action. It also refreshes the Magisk update manifests
-with the universal ZIP URL. `module/module.prop` is the source of `versionCode`;
-the workflow stamps the display version as `<tag>-<NetBird version>`.
-Tags containing `-` are published as prereleases.
-
-The repository follows the KernelSU Modules layout: `module/` is the complete
-installable module root, `module.yaml` contains catalog metadata, and the
-release action generates and validates the ZIP. For a local package, run
-`cd module && zip -r9 ../magisk-netbird-local.zip .` after placing the three
-architecture binaries in `module/netbird/bin/`.
+32-bit ARM, and x86_64. Magisk-compatible managers can check for updates from
+the module's update information. The ACTION button needs Magisk v28+.
 
 ## Usage
 
 Before reboot:
 
 ```sh
-su -c '/dev/netbird.service up --setup-key <KEY> --management-url <URL>'
-su -c '/dev/netbird.service status'
+su -c '/data/adb/netbird/scripts/netbird.service up --setup-key <KEY> --management-url <URL>'
+su -c '/data/adb/netbird/scripts/netbird.service status'
 ```
 
 After reboot:

@@ -6,7 +6,6 @@
 
 <p align="center">
   <img alt="Release" src="https://img.shields.io/github/v/release/ahsaboy/magisk-netbird?logo=git&logoColor=white">
-  <img alt="CI" src="https://img.shields.io/github/actions/workflow/status/ahsaboy/magisk-netbird/release.yml?branch=main&label=CI&logo=githubactions&logoColor=white">
   <img alt="Downloads" src="https://img.shields.io/github/downloads/ahsaboy/magisk-netbird/total?logo=github&logoColor=white">
   <img alt="NetBird" src="https://img.shields.io/github/v/release/netbirdio/netbird?label=NetBird">
   <img alt="Magisk" src="https://img.shields.io/badge/Magisk-%E2%89%A520.4-green?logo=magisk&logoColor=white">
@@ -16,7 +15,7 @@
 <p align="center"><b><a href="README.md">English</a> · <a href="README.zh-CN.md">中文</a></b></p>
 
 NetBird CLI 常驻进程的精简 Magisk 模块封装。为三种架构打包官方 NetBird
-二进制（当前 v0.80.0），由 GitHub Actions 自动构建。
+二进制（当前 v0.80.0）。
 
 使用 `netbird.service up` 加入网络时，默认禁用 DNS 管理。
 
@@ -29,36 +28,16 @@ NetBird CLI 常驻进程的精简 Magisk 模块封装。为三种架构打包官
 最新发布：<https://github.com/ahsaboy/magisk-netbird/releases/latest>
 
 发布 ZIP 内含三种架构的 NetBird 二进制，可安装于 arm64-v8a、32 位 ARM
-和 x86_64。安装时会把对应架构的 Magisk 更新清单
-（`module/update/update-<arch>.json`）写入 `module.prop`，清单指向通用发布 ZIP。
-Kitsune 和旧版管理器同样支持更新横幅；ACTION 按钮需要 Magisk v28+。
-
-## 发布新版本
-
-```sh
-# 增加 module/module.prop 中的 versionCode，更新 CHANGELOG.md 并提交，然后：
-git tag v1.4.7
-git push origin main v1.4.7
-```
-
-工作流会测试并构建 WebUI，下载所有支持架构的官方 NetBird 二进制并校验
-SHA256，然后使用 KernelSU Modules release action 校验并发布 `module/` 内容。
-发布后也会刷新 Magisk 更新清单，使其指向通用 ZIP。`module/module.prop` 是
-`versionCode` 的唯一来源；工作流会把显示版本写成 `<tag>-<NetBird 版本>`，
-包含 `-` 的 tag 会发布为预发布版本。
-
-仓库采用 KernelSU Modules 目录规范：`module/` 是完整可安装模块根目录，
-`module.yaml` 保存模块目录元数据，由 release action 生成并校验 ZIP。本地打包时，
-先将三个架构的二进制放入 `module/netbird/bin/`，再执行
-`cd module && zip -r9 ../magisk-netbird-local.zip .`。
+和 x86_64。支持 Magisk 更新检查的管理器可以从模块更新信息中获取新版本。
+ACTION 按钮需要 Magisk v28+。
 
 ## 使用
 
 重启前：
 
 ```sh
-su -c '/dev/netbird.service up --setup-key <KEY> --management-url <URL>'
-su -c '/dev/netbird.service status'
+su -c '/data/adb/netbird/scripts/netbird.service up --setup-key <KEY> --management-url <URL>'
+su -c '/data/adb/netbird/scripts/netbird.service status'
 ```
 
 重启后：
