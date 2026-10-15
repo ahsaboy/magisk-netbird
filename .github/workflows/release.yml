@@ -95,7 +95,7 @@ jobs:
         with:
           module-dir: module
           prerelease: ${{ contains(github.ref_name, '-') }}
-          generate-release-notes: true
+          release-notes-file: .github/release-notes.md
 
       - name: Report release
         env:
