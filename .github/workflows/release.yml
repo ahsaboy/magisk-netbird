@@ -60,6 +60,21 @@ jobs:
           sed -i "s|^version=.*|version=${BASE}-${NB}|" module/module.prop
           echo "Building ${BASE} with NetBird ${NB} (versionCode ${VC})"
 
+      - name: Prepare concise release notes
+        run: |
+          set -euo pipefail
+          TAG="${GITHUB_REF_NAME%%-*}"
+          awk -v tag="$TAG" '
+            $0 ~ "^## " tag "([[:space:]]|$)" { in_section=1 }
+            in_section && /^## / && $0 !~ "^## " tag "([[:space:]]|$)" { exit }
+            in_section { lines[count++]=$0 }
+            END {
+              while (count > 0 && lines[count - 1] ~ /^[[:space:]]*$/) count--
+              for (i = 0; i < count; i++) print lines[i]
+            }
+          ' CHANGELOG.md > release-notes.md
+          test -s release-notes.md || { echo "::error::No changelog section found for ${TAG}"; exit 1; }
+
       - name: Download and verify official NetBird binaries
         env:
           NETBIRD_VERSION: ${{ steps.ver.outputs.nb }}
@@ -95,7 +110,7 @@ jobs:
         with:
           module-dir: module
           prerelease: ${{ contains(github.ref_name, '-') }}
-          release-notes-file: CHANGELOG.md
+          release-notes-file: release-notes.md
 
       - name: Report release
         env:
@@ -125,22 +140,33 @@ jobs:
         run: |
           set -euo pipefail
           ZIP_URL="https://github.com/${GITHUB_REPOSITORY}/releases/download/${TAG}/${ASSET_NAME}"
-          CHANGELOG="https://cdn.jsdelivr.net/gh/${GITHUB_REPOSITORY}@main/CHANGELOG.md"
+          NOTES_URL="https://cdn.jsdelivr.net/gh/${GITHUB_REPOSITORY}@main/release-notes.md"
+          TAG_BASE="${TAG%%-*}"
+          awk -v tag="$TAG_BASE" '
+            $0 ~ "^## " tag "([[:space:]]|$)" { in_section=1 }
+            in_section && /^## / && $0 !~ "^## " tag "([[:space:]]|$)" { exit }
+            in_section { lines[count++]=$0 }
+            END {
+              while (count > 0 && lines[count - 1] ~ /^[[:space:]]*$/) count--
+              for (i = 0; i < count; i++) print lines[i]
+            }
+          ' CHANGELOG.md > release-notes.md
+          test -s release-notes.md || { echo "::error::No changelog section found for ${TAG_BASE}"; exit 1; }
           mkdir -p module/updates
           for KEY in x86_64 arm64-v8a armv7; do
             jq -n --arg v "$VERSION" --argjson vc "$VERSION_CODE" \
-              --arg z "$ZIP_URL" --arg c "$CHANGELOG" \
+              --arg z "$ZIP_URL" --arg c "$NOTES_URL" \
               '{version: $v, versionCode: $vc, zipUrl: $z, changelog: $c}' \
               > "module/updates/update-${KEY}.json"
           done
           jq -n --arg v "$VERSION" --argjson vc "$VERSION_CODE" \
-            --arg z "$ZIP_URL" --arg c "$CHANGELOG" \
+            --arg z "$ZIP_URL" --arg c "$NOTES_URL" \
             '{version: $v, versionCode: $vc, zipUrl: $z, changelog: $c}' \
             > module/update.json
           cp module/update.json update.json
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add update.json module/update.json module/updates/
+          git add release-notes.md update.json module/update.json module/updates/
           if git diff --cached --quiet; then
             echo "update manifests already up to date"
           else
