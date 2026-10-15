@@ -126,12 +126,12 @@ jobs:
           set -euo pipefail
           ZIP_URL="https://github.com/${GITHUB_REPOSITORY}/releases/download/${TAG}/${ASSET_NAME}"
           CHANGELOG="https://cdn.jsdelivr.net/gh/${GITHUB_REPOSITORY}@main/CHANGELOG.md"
-          mkdir -p module/update
+          mkdir -p module/updates
           for KEY in x86_64 arm64-v8a armv7; do
             jq -n --arg v "$VERSION" --argjson vc "$VERSION_CODE" \
               --arg z "$ZIP_URL" --arg c "$CHANGELOG" \
               '{version: $v, versionCode: $vc, zipUrl: $z, changelog: $c}' \
-              > "module/update/update-${KEY}.json"
+              > "module/updates/update-${KEY}.json"
           done
           jq -n --arg v "$VERSION" --argjson vc "$VERSION_CODE" \
             --arg z "$ZIP_URL" --arg c "$CHANGELOG" \
@@ -140,7 +140,7 @@ jobs:
           cp module/update.json update.json
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add update.json module/update.json module/update/
+          git add update.json module/update.json module/updates/
           if git diff --cached --quiet; then
             echo "update manifests already up to date"
           else

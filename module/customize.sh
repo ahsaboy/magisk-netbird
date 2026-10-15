@@ -111,11 +111,14 @@ gh_download() {
 }
 
 ui_print "- Extracting module files"
+# `update` is reserved by Magisk/KernelSU as the pending-update marker.
+# Remove the legacy manifest directory before installing the renamed `updates` directory.
+rm -rf "$MODPATH/update"
 unzip -qqo "$ZIPFILE" -x 'META-INF/*' 'netbird/*' -d "$MODPATH"
 
 # Per-arch update manifest: the Magisk app fetches this URL to show the
-# "update available" banner (version/versionCode/zipUrl live in update/*.json).
-UPDATE_JSON_URL="https://cdn.jsdelivr.net/gh/ahsaboy/magisk-netbird@main/module/update/update-${UPDATE_KEY}.json"
+# "update available" banner (version/versionCode/zipUrl live in updates/*.json).
+UPDATE_JSON_URL="https://cdn.jsdelivr.net/gh/ahsaboy/magisk-netbird@main/module/updates/update-${UPDATE_KEY}.json"
 if [ -f "$MODPATH/module.prop" ]; then
   if grep -q '^updateJson=' "$MODPATH/module.prop"; then
     sed -i "s|^updateJson=.*|updateJson=${UPDATE_JSON_URL}|" "$MODPATH/module.prop"
