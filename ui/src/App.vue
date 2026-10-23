@@ -139,8 +139,11 @@ async function load(action, force = false) {
   // second identical root command while the first is still running.
   if (inFlight.has(action)) return false;
   // A stopped daemon can only fail reads; show the stopped placeholder and
-  // drop cached rows instead of firing a doomed command.
-  if (action === "networks" && model.value.daemon === "stopped") {
+  // drop cached rows instead of firing a doomed command. A running daemon
+  // that is not connected cannot list networks either — same treatment.
+  if (action === "networks" &&
+      (model.value.daemon === "stopped" ||
+        ["disconnected", "needs-login", "connecting"].includes(model.value.connection))) {
     networkItems.value = [];
     networksLoaded.value = true;
     networksError.value = "";
@@ -171,7 +174,7 @@ async function load(action, force = false) {
     if (isDiagnostic && requestId !== diagnosticRequestId) return false;
     // Implicit reads report in-page, never via toast; toasts are reserved
     // for explicit switch/confirm actions.
-    if (action === "networks") { networksLoaded.value = true; networksError.value = error.message; }
+    if (action === "networks") { networksLoaded.value = true; networksError.value = String(error.message).replace(/^Error:\s*/i, ""); }
     else if (isDiagnostic) showDiagnostic(error.message);
     return false;
   } finally {
@@ -461,16 +464,20 @@ onUnmounted(() => window.clearTimeout(networksPrefetchTimer));
         <template v-else-if="active === 'networks'">
           <section class="section-card">
             <div class="section-heading"><div><span class="section-kicker">ROUTES</span><h2>{{ t('networkTitle') }}</h2></div><Button variant="outline" size="sm" :disabled="busy" @click="load('networks', true)"><RefreshCw :size="14" />{{ t('refresh') }}</Button></div>
-            <p class="section-hint">{{ t('routeHint') }}</p>
-            <div class="bulk-actions"><Button size="sm" :disabled="busy" @click="changeNetwork('select', 'all')"><Check :size="14" />{{ t('acceptAll') }}</Button><Button variant="outline" size="sm" :disabled="busy" @click="changeNetwork('deselect', 'all')"><X :size="14" />{{ t('disableAll') }}</Button></div>
             <div v-if="model.daemon === 'stopped'" class="empty-state" role="status"><div class="empty-icon"><Power :size="19" /></div><p>{{ t('daemonStoppedHint') }}</p></div>
+            <div v-else-if="model.connection === 'disconnected' || model.connection === 'needs-login'" class="empty-state" role="status"><div class="empty-icon"><WifiOff :size="19" /></div><p>{{ t('networkNeedsConnection') }}</p></div>
+            <div v-else-if="model.connection === 'connecting'" class="empty-state" role="status"><LoaderCircle class="animate-spin" :size="20" /><p>{{ t('connecting') }}</p></div>
             <div v-else-if="networksError" class="empty-state" role="alert"><CircleAlert :size="18" /><p>{{ networksError }}</p><Button variant="ghost" size="sm" @click="load('networks', true)">{{ t('retry') }}</Button></div>
-            <div v-else-if="!networkItems.length" class="empty-state" role="status"><LoaderCircle v-if="!networksLoaded" class="animate-spin" :size="20" /><div v-else class="empty-icon"><Route :size="19" /></div><p>{{ networksLoaded ? t('noData') : t('checking') }}</p><Button v-if="networksLoaded" variant="ghost" size="sm" @click="load('networks', true)">{{ t('retry') }}</Button></div>
-            <article v-for="item in networkItems" :key="item.id" class="network-row">
-              <div class="network-ident"><strong>{{ item.id }}</strong><span>{{ item.network }}</span><span v-if="item.domains !== '-'">{{ t('domains') }}: {{ item.domains }}</span><span v-if="item.resolvedIps !== '-'">{{ t('resolved') }}: {{ item.resolvedIps }}</span></div>
-              <Badge variant="outline" :class="item.status.toLowerCase() === 'selected' ? 'border-primary/30 bg-secondary text-primary' : 'border-accent-foreground/20 bg-accent text-accent-foreground'">{{ item.status.toLowerCase() === 'selected' ? t('selected') : t('notSelected') }}</Badge>
-              <Button class="network-action" variant="outline" size="sm" :disabled="busy" @click="changeNetwork(item.status.toLowerCase() === 'selected' ? 'deselect' : 'append', item.id)">{{ item.status.toLowerCase() === 'selected' ? t('disable') : t('enable') }}<ChevronRight :size="14" /></Button>
-            </article>
+            <template v-else>
+              <p class="section-hint">{{ t('routeHint') }}</p>
+              <div class="bulk-actions"><Button size="sm" :disabled="busy" @click="changeNetwork('select', 'all')"><Check :size="14" />{{ t('acceptAll') }}</Button><Button variant="outline" size="sm" :disabled="busy" @click="changeNetwork('deselect', 'all')"><X :size="14" />{{ t('disableAll') }}</Button></div>
+              <div v-if="!networkItems.length" class="empty-state" role="status"><LoaderCircle v-if="!networksLoaded" class="animate-spin" :size="20" /><div v-else class="empty-icon"><Route :size="19" /></div><p>{{ networksLoaded ? t('noData') : t('checking') }}</p><Button v-if="networksLoaded" variant="ghost" size="sm" @click="load('networks', true)">{{ t('retry') }}</Button></div>
+              <article v-for="item in networkItems" :key="item.id" class="network-row">
+                <div class="network-ident"><strong>{{ item.id }}</strong><span>{{ item.network }}</span><span v-if="item.domains !== '-'">{{ t('domains') }}: {{ item.domains }}</span><span v-if="item.resolvedIps !== '-'">{{ t('resolved') }}: {{ item.resolvedIps }}</span></div>
+                <Badge variant="outline" :class="item.status.toLowerCase() === 'selected' ? 'border-primary/30 bg-secondary text-primary' : 'border-accent-foreground/20 bg-accent text-accent-foreground'">{{ item.status.toLowerCase() === 'selected' ? t('selected') : t('notSelected') }}</Badge>
+                <Button class="network-action" variant="outline" size="sm" :disabled="busy" @click="changeNetwork(item.status.toLowerCase() === 'selected' ? 'deselect' : 'append', item.id)">{{ item.status.toLowerCase() === 'selected' ? t('disable') : t('enable') }}<ChevronRight :size="14" /></Button>
+              </article>
+            </template>
           </section>
         </template>
 

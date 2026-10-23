@@ -236,6 +236,11 @@ describe("mobile WebUI", () => {
     expect(findButton("启动守护进程")).toBeUndefined();
     expect(findButton("断开网络").element.disabled).toBe(true);
     expect(findButton("重连网络").element.disabled).toBe(false);
+
+    await openTab("networks");
+    expect(wrapper.text()).toContain("未连接网络");
+    expect(wrapper.text()).not.toContain("全部启用");
+    expect(commands.some((command) => command.endsWith("webui networks"))).toBe(false);
   });
 
   it("drops cached networks and shows a stopped placeholder after the daemon stops", async () => {
