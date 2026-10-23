@@ -1,5 +1,5 @@
 <script setup>
-import { computed, onMounted, ref, watch } from "vue";
+import { computed, onMounted, onUnmounted, ref, watch } from "vue";
 import {
   Activity, ArrowDownToLine, ArrowUpFromLine, Check, ChevronRight,
   CircleAlert, Clock3, Globe2, Languages, ListFilter, LoaderCircle, Network, Palette, RefreshCw,
@@ -112,9 +112,16 @@ async function loadStatus() {
     return result;
   } finally { statusLoading.value = false; }
 }
+const inFlight = new Set();
 async function load(action, force = false) {
+  // One shell per action: a double-tapped retry/refresh must not spawn a
+  // second identical root command while the first is still running.
+  if (inFlight.has(action)) return false;
   const now = Date.now();
-  if (!force && now - (lastLoaded.get(action) || 0) < 5000) { tell(t("recentlyUpdated")); return false; }
+  // Silent cooldown for implicit loads (tab switches, prefetch); explicit
+  // refreshes pass force=true and bypass it.
+  if (!force && now - (lastLoaded.get(action) || 0) < 5000) return false;
+  inFlight.add(action);
   lastLoaded.set(action, now);
   const isDiagnostic = ["version", "state", "profiles"].includes(action);
   const requestId = isDiagnostic ? ++diagnosticRequestId : 0;
@@ -137,6 +144,7 @@ async function load(action, force = false) {
     tell(error.message, "fail");
     return false;
   } finally {
+    inFlight.delete(action);
     if (isDiagnostic && requestId === diagnosticRequestId) diagnosticLoading.value = "";
   }
 }
@@ -233,7 +241,18 @@ function handleTouchEnd(event) {
   if (deltaY > 90 && event.currentTarget.scrollTop === 0) refreshData();
 }
 
-onMounted(() => load("status", true));
+let networksPrefetchTimer = 0;
+onMounted(() => {
+  load("status", true);
+  // Warm the Networks list in the background so the first tab switch is
+  // instant. Only when the daemon is actually running (a prefetch against a
+  // stopped daemon would pop an error toast unprompted), and skipped when the
+  // user opened the tab first (cooldown + in-flight guard).
+  networksPrefetchTimer = window.setTimeout(() => {
+    if (model.value.daemon === "running") load("networks");
+  }, 1200);
+});
+onUnmounted(() => window.clearTimeout(networksPrefetchTimer));
 </script>
 
 <template>
