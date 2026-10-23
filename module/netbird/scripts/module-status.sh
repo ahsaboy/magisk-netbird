@@ -351,11 +351,25 @@ build_description() {
   printf '%s\n' "$summary" | clean_value
 }
 
+ksu_publish_description() {
+  # KernelSU's module config system lets the manager display a runtime
+  # description via the override.description key (newer ksud builds only).
+  # Best-effort and additive: module.prop is still written for Magisk and for
+  # managers that do not read the config store.
+  command -v ksud >/dev/null 2>&1 || return 0
+  [ -d /data/adb/ksu ] || return 0
+  KSU_MODULE="${KSU_MODULE:-magisk-netbird}" \
+    ksud module config set override.description "$description" >/dev/null 2>&1 || true
+}
+
 write_module_prop() {
-  prop_files="$(module_prop_paths)"
-  [ -n "$prop_files" ] || return 0
   description="$(build_description)"
   [ -n "$description" ] || description="$default_description"
+
+  ksu_publish_description
+
+  prop_files="$(module_prop_paths)"
+  [ -n "$prop_files" ] || return 0
 
   for prop_file in $prop_files; do
     tmp_file="$prop_file.tmp.$$"

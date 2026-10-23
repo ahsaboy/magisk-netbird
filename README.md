@@ -15,7 +15,7 @@
 <p align="center"><b><a href="README.md">English</a> · <a href="README.zh-CN.md">中文</a></b></p>
 
 Minimal Magisk module wrapper for the NetBird CLI daemon. Official NetBird
-binaries (currently v0.80.0) are bundled for three architectures.
+binaries (currently v0.81.3) are bundled for three architectures.
 
 DNS management is disabled by default when joining with `netbird.service up`.
 
@@ -46,6 +46,15 @@ After reboot:
 su -c 'netbird.service up --setup-key <KEY> --management-url <URL>'
 su -c 'netbird.service status'
 su -c 'netbird.service log'
+```
+
+On KernelSU without a mount metamodule installed, the module's `system/bin`
+overlay is not mounted and `netbird.service` may be missing from `PATH` after
+a reboot. The module re-creates `/dev/netbird` and `/dev/netbird.service`
+symlinks on every boot; use those as a drop-in replacement:
+
+```sh
+su -c '/dev/netbird.service status'
 ```
 
 To keep the setup key out of shell history and `ps` output, prefer a file:

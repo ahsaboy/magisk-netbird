@@ -15,7 +15,7 @@
 <p align="center"><b><a href="README.md">English</a> · <a href="README.zh-CN.md">中文</a></b></p>
 
 NetBird CLI 常驻进程的精简 Magisk 模块封装。为三种架构打包官方 NetBird
-二进制（当前 v0.80.0）。
+二进制（当前 v0.81.3）。
 
 使用 `netbird.service up` 加入网络时，默认禁用 DNS 管理。
 
@@ -46,6 +46,15 @@ su -c '/data/adb/netbird/scripts/netbird.service status'
 su -c 'netbird.service up --setup-key <KEY> --management-url <URL>'
 su -c 'netbird.service status'
 su -c 'netbird.service log'
+```
+
+在未安装挂载 metamodule（如 meta-overlayfs）的 KernelSU 上，模块的
+`system/bin` 目录不会被挂载，重启后 `netbird.service` 可能不在 `PATH`
+中。模块会在每次开机时重建 `/dev/netbird` 和 `/dev/netbird.service`
+符号链接，可直接作为替代入口：
+
+```sh
+su -c '/dev/netbird.service status'
 ```
 
 为避免 setup key 进入 shell 历史和 `ps` 输出，建议改用文件方式：
