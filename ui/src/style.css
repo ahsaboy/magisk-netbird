@@ -199,7 +199,32 @@ button { touch-action: manipulation; }
 .bottom-nav { z-index: 2; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); padding: 7px 8px calc(7px + env(safe-area-inset-bottom)); border-top: 1px solid var(--border); background: color-mix(in oklab, var(--card) 96%, transparent); }
 .bottom-nav button { display: flex; min-width: 0; min-height: 48px; align-items: center; justify-content: center; flex-direction: column; gap: 4px; border: 0; border-radius: 11px; background: transparent; color: var(--muted-foreground); font-size: 10px; font-weight: 550; }
 .bottom-nav button[aria-current="page"] { background: var(--secondary); color: var(--primary); }
-.notice { overflow-wrap: anywhere; }
+.notice-toast {
+  position: fixed;
+  z-index: 60;
+  top: 50%;
+  left: 50%;
+  max-width: calc(100vw - 48px);
+  padding: 12px 22px;
+  transform: translate(-50%, -50%);
+  border-radius: 16px;
+  background: rgb(32 34 33 / 68%);
+  backdrop-filter: blur(6px);
+  box-shadow: 0 10px 34px rgb(0 0 0 / 24%);
+  color: rgb(255 255 255 / 94%);
+  font-size: 13px;
+  font-weight: 550;
+  line-height: 1.5;
+  text-align: center;
+  pointer-events: none;
+  overflow-wrap: anywhere;
+  animation: notice-in 180ms ease-out;
+}
+.notice-fail { color: rgb(255 179 179 / 96%); }
+@keyframes notice-in {
+  from { opacity: 0; transform: translate(-50%, -46%) scale(0.96); }
+  to { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+}
 @media (max-width: 360px) {
   .app-header { padding-inline: 14px; }
   .app-header { gap: 8px; }
@@ -285,7 +310,6 @@ button { touch-action: manipulation; }
   .peer-heading-actions { gap: 5px; }
   .peer-filter-trigger, .peer-refresh-trigger { width: 34px; height: 34px; }
 }
-.notice { padding: 10px 12px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--card); font-size: 12px; line-height: 1.45; }
 .dialog-overlay { position: fixed; z-index: 50; inset: 0; background: rgb(10 20 15 / 46%); backdrop-filter: blur(2px); }
 .dialog-panel { position: fixed; z-index: 51; top: 50%; left: 50%; width: calc(100% - 32px); max-width: 384px; max-height: calc(100dvh - 32px); overflow: auto; padding: 20px; transform: translate(-50%, -50%); border: 1px solid var(--border); border-radius: var(--radius); outline: none; background: var(--card); color: var(--card-foreground); box-shadow: 0 18px 50px rgb(0 0 0 / 20%); }
 .dialog-close { position: absolute; top: 12px; right: 12px; display: grid; width: 30px; height: 30px; place-items: center; border: 0; border-radius: 9px; background: transparent; color: var(--muted-foreground); }

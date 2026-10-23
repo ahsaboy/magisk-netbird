@@ -303,7 +303,7 @@ onMounted(() => load("status", true));
           </div>
         </section>
 
-        <div v-if="notice" class="notice" :class="noticeType === 'fail' ? 'text-destructive' : 'text-primary'" role="status">{{ notice }}</div>
+        <div v-if="notice" class="notice-toast" :class="noticeType === 'fail' ? 'notice-fail' : 'notice-ok'" role="status">{{ notice }}</div>
 
         <Transition :name="pageTransition" mode="out-in">
         <div :key="active" class="view-stage">
