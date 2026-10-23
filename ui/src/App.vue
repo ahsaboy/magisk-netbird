@@ -171,10 +171,14 @@ function onTabChange(name) {
   active.value = name;
   const page = document.querySelector(".page-scroll");
   if (page) page.scrollTop = 0;
-  window.requestAnimationFrame(() => {
+  // Switch first, load after: the incoming view already renders its loading
+  // placeholder, and firing the root-command bridge during the slide
+  // transition janks the animation. Wait for the ~220ms transition to finish.
+  window.setTimeout(() => {
+    if (active.value !== name) return;
     if (name === "peers") load("status");
     if (name === "networks") load("networks");
-  });
+  }, 240);
 }
 async function withBusy(action) {
   busy.value = true;

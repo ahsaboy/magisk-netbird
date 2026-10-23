@@ -58,6 +58,8 @@ async function openTab(id) {
   await wrapper.get(`[data-tab="${id}"]`).trigger("click");
   await nextTick();
   await new Promise((resolve) => window.requestAnimationFrame(resolve));
+  // tab data loads after the ~240ms slide transition (switch first, load after)
+  await new Promise((resolve) => window.setTimeout(resolve, 260));
   await flushPromises();
 }
 
@@ -106,7 +108,9 @@ describe("mobile WebUI", () => {
     expect(wrapper.get('[data-tab="networks"]').attributes("aria-current")).toBe("page");
     expect(wrapper.text()).toContain("Networks / Routes");
     expect(wrapper.text()).toContain("读取中");
-    await new Promise((resolve) => window.requestAnimationFrame(resolve));
+    // the view switched instantly; the read fires after the slide transition
+    await new Promise((resolve) => window.setTimeout(resolve, 260));
+    await flushPromises();
     expect(commands.some((command) => command.endsWith("webui networks"))).toBe(true);
     pendingCallback?.();
   });
