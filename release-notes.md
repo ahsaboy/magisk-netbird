@@ -1,6 +1,6 @@
-## v1.4.8 — NetBird v0.80.0
+## v1.4.9 — NetBird v0.81.3
 
-- Renamed the per-architecture update manifests from `update/` to `updates/` because KernelSU reserves `update` as the pending-update marker.
-- Removed the legacy `update/` directory during upgrades so KernelSU does not leave the module in a pending state.
-- **Installation recovery (EN):** If installation fails, uninstall the module, back up `/data/adb/netbird/config.json` if it exists, and then install the module again.
-- **安装恢复（中文）：** 如果安装失败，请先卸载模块；如存在，请备份 `/data/adb/netbird/config.json`，然后重新安装模块。
+- Updated the bundled official NetBird client from `0.80.0` to `0.81.3` for `x86_64`, `arm64-v8a`, and `armv7` packages, each archive SHA-256 verified against the official release checksums before packaging.
+- Carries the upstream v0.81.x client changes: relayed connections in kernel mode no longer require eBPF (replaced by loopback endpoint addressing), one unreachable relay no longer churns the other relay connections, ICE session IDs survive remote restarts with fewer unnecessary reconnects, and the signal stream registration wait is bounded for faster failure detection.
+- Re-created the `/dev/netbird` and `/dev/netbird.service` entry-point symlinks on every boot, so the CLI stays reachable after reboot on KernelSU without a mount metamodule (and in late-load mode), where `/dev` is wiped and the module's `system/bin` overlay is not mounted.
+- On KernelSU, the dynamic module status is now also published through the `ksud module config` `override.description` key; Magisk and older managers keep reading the periodically refreshed `module.prop`.
