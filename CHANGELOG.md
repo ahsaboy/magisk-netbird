@@ -2,6 +2,9 @@
 
 ## v1.4.10 — NetBird v0.81.3
 
+- Fixed the watchdog restart path: `kill "$pid"2>/dev/null` was missing a space, so TERM/KILL targeted a nonexistent PID and a wedged daemon was never actually killed before the restart attempt.
+- Deduplicated the busybox-timeout wrappers in the status watcher (`nb_with_timeout`) and made `client_cmd` delegate to `webui_client`.
+
 - Removed the WebUI forwarding-rules view: NetBird dropped the `forwarding` CLI command in v0.81.0 together with management-side ingress ports, so the view always failed with `unknown command "forwarding"`.
 - The `webui forwarding` service action now returns an explicit "no longer available in NetBird v0.81.0+" error instead of passing the raw CLI failure through, so stale cached WebUI pages show a clear message.
 - The Networks view now shows a loading state while retrying after a failed load, matching the removed forwarding view's behavior.

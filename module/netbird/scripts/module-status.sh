@@ -97,20 +97,20 @@ short_available() {
 
 # `netbird status --json` with a hard timeout so a wedged socket cannot hang
 # the watcher (used by the watchdog probe and the peer details below).
-status_json() {
+nb_with_timeout() {
   if command -v busybox >/dev/null 2>&1; then
-    busybox timeout 10 netbird --daemon-addr "$NB_DAEMON_ADDR" status --json 2>/dev/null
+    busybox timeout 10 "$@"
   else
-    netbird --daemon-addr "$NB_DAEMON_ADDR" status --json 2>/dev/null
+    "$@"
   fi
 }
 
+status_json() {
+  nb_with_timeout netbird --daemon-addr "$NB_DAEMON_ADDR" status --json 2>/dev/null
+}
+
 daemon_responsive() {
-  if command -v busybox >/dev/null 2>&1; then
-    busybox timeout 10 netbird --daemon-addr "$NB_DAEMON_ADDR" status >/dev/null 2>&1
-  else
-    netbird --daemon-addr "$NB_DAEMON_ADDR" status >/dev/null 2>&1
-  fi
+  nb_with_timeout netbird --daemon-addr "$NB_DAEMON_ADDR" status >/dev/null 2>&1
 }
 
 # Print "<direct> <relayed>" counts for Connected peers in a status --json blob.
@@ -263,7 +263,7 @@ watchdog_restart_daemon() {
     wd_pids=""
   fi
   for wd_pid in $wd_pids; do
-    kill -15 "$wd_pid"2>/dev/null || true
+    kill -15 "$wd_pid" 2>/dev/null || true
   done
   [ -n "$wd_pids" ] && sleep 3
   if command -v busybox >/dev/null 2>&1; then
@@ -272,7 +272,7 @@ watchdog_restart_daemon() {
     wd_pids=""
   fi
   for wd_pid in $wd_pids; do
-    kill -9 "$wd_pid"2>/dev/null || true
+    kill -9 "$wd_pid" 2>/dev/null || true
   done
   rm -f "$NB_SOCKET" "$NB_RUN_DIR/netbird.pid"
   if [ -x "$NB_SCRIPTS_DIR/netbird.service" ]; then

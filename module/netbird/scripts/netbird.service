@@ -445,10 +445,7 @@ daemon_status() {
 
 client_cmd() {
   refresh_runtime
-  (
-    unset NB_CONFIG
-    netbird --daemon-addr "$NB_DAEMON_ADDR" "$@"
-  )
+  webui_client "$@"
 }
 
 webui_client() {
