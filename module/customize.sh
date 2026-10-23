@@ -114,7 +114,9 @@ ui_print "- Extracting module files"
 # `update` is reserved by Magisk/KernelSU as the pending-update marker.
 # Remove the legacy manifest directory before installing the renamed `updates` directory.
 rm -rf "$MODPATH/update"
-unzip -qqo "$ZIPFILE" -x 'META-INF/*' 'netbird/*' -d "$MODPATH"
+# update.json / updates/*.json are download-time manifests only (managers fetch
+# the updateJson URL from module.prop); skip them so they never land in MODPATH.
+unzip -qqo "$ZIPFILE" -x 'META-INF/*' 'netbird/*' 'update.json' 'updates/*' -d "$MODPATH"
 
 # Per-arch update manifest: the Magisk app fetches this URL to show the
 # "update available" banner (version/versionCode/zipUrl live in updates/*.json).

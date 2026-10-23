@@ -5,6 +5,8 @@
 - Removed the WebUI forwarding-rules view: NetBird dropped the `forwarding` CLI command in v0.81.0 together with management-side ingress ports, so the view always failed with `unknown command "forwarding"`.
 - The `webui forwarding` service action now returns an explicit "no longer available in NetBird v0.81.0+" error instead of passing the raw CLI failure through, so stale cached WebUI pages show a clear message.
 - The Networks view now shows a loading state while retrying after a failed load, matching the removed forwarding view's behavior.
+- Moved the WebUI bridge sources (`view-model.mjs`, `kernelsu.js`) out of `module/webroot/` into `ui/src/`, so the shipped webroot contains only build output; removed the duplicate `ui/src/lib/utils.ts` and two unused i18n strings.
+- Install-time extraction now skips the `update.json` / `updates/*.json` download manifests (managers fetch updates via the `updateJson` URL in `module.prop`, so the copies in `MODPATH` were dead weight).
 
 ## v1.4.9 — NetBird v0.81.3
 

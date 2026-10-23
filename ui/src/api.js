@@ -1,4 +1,4 @@
-import { exec } from "../../module/webroot/kernelsu.js";
+import { exec } from "./kernelsu.js";
 
 const SERVICE = "/data/adb/netbird/scripts/netbird.service";
 const READ_COMMANDS = Object.freeze({

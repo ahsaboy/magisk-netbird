@@ -9,9 +9,6 @@ export default defineConfig({
     alias: { "@": fileURLToPath(new URL("./src", import.meta.url)) }
   },
   base: "./",
-  server: {
-    fs: { allow: [".."] }
-  },
   build: {
     outDir: "../module/webroot",
     emptyOutDir: false,
