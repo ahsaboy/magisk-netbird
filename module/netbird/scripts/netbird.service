@@ -546,7 +546,10 @@ webui_profile_select() {
 
 # Connection control (tier 1): bare `netbird up`/`down` over daemon IPC.
 # Fast, no process management; flags from the original `up` persist in
-# config.json and are reused on reconnect. Requires a running daemon.
+# config.json and are reused on reconnect. Requires a running daemon —
+# except `up`, which starts a dead daemon detached and lets auto-connect
+# restore the tunnel (covers "daemon killed while disconnected"; the idle
+# watcher deliberately does not revive it).
 webui_connection() {
   conn_action="$1"
   case "$conn_action" in
@@ -554,11 +557,21 @@ webui_connection() {
     *) return 2 ;;
   esac
   if ! is_running; then
+    if [ "$conn_action" = "up" ]; then
+      nohup "$NB_SCRIPTS_DIR/netbird.service" start >/dev/null 2>&1 &
+      printf '{"action":"up","started":true}\n'
+      return 0
+    fi
     echo "daemon is not running" >&2
     return 1
   fi
   webui_client "$conn_action"
   conn_rc="$?"
+  if [ "$conn_action" = "up" ] && [ -x "$NB_SCRIPTS_DIR/netbird.service" ]; then
+    # The idle watcher skipped route re-checks while disconnected; restore
+    # the underlay rules immediately instead of waiting for the next cycle.
+    "$NB_SCRIPTS_DIR/netbird.service" route >/dev/null 2>&1 || true
+  fi
   update_module_status
   return "$conn_rc"
 }

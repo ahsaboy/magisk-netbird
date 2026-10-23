@@ -139,6 +139,8 @@ variables (environment outranks CLI flags in NetBird):
 | `NB_WATCHDOG` | `on` | Watchdog: auto-restart the daemon when its status stops responding; `off` disables. |
 | `NB_WATCHDOG_FAILS` | `3` | Failed status probes (one per refresh cycle) before a restart. |
 | `NB_WATCHDOG_MAX_RESTARTS` | `10` | Restart budget; reset after 5 healthy cycles. |
+| `NB_PROP_UPDATE_INTERVAL` | `60` | Watch cycle in seconds while connected: route re-checks, watchdog probes, and status refresh (one `status --json` call per cycle). |
+| `NB_IDLE_UPDATE_INTERVAL` | `300` | Relaxed cycle while the client is disconnected: no route re-checks or watchdog restarts, only the status line refreshes. `webui up` starts a dead daemon and restores underlay routes on reconnect. |
 
 All of the variables above (and any other variable the official client
 supports) can be persisted in `/data/adb/netbird/.env` as `KEY=VALUE` lines
@@ -160,9 +162,15 @@ so after changing them run `netbird.service down` followed by
 
 The status watcher re-applies both IPv4 and IPv6 Android root underlay rules every refresh cycle
 (default 60s), so Wi-Fi/cellular/SIM switches no longer require a manual restart.
-The same watcher probes daemon health each cycle and restarts it after 3
-consecutive failed probes (watchdog: budget10 restarts, reset after5 healthy
-cycles - tunable via `NB_WATCHDOG*`, disable with `NB_WATCHDOG=off`).
+The same watcher probes daemon health each cycle — with a single shared
+`status --json` call — and restarts the daemon after 3 consecutive failed
+probes (watchdog: budget 10 restarts, reset after 5 healthy cycles - tunable
+via `NB_WATCHDOG*`, disable with `NB_WATCHDOG=off`). While the client is
+intentionally disconnected (`netbird down`), the watcher stands down: route
+re-checks and watchdog restarts are skipped and the cycle relaxes to
+`NB_IDLE_UPDATE_INTERVAL` (default 300s), so an idle daemon costs almost
+nothing; `webui up` starts a dead daemon on demand and refreshes the underlay
+routes on reconnect.
 `netbird.service stop` (and uninstall) removes all ip rules and iptables rules
 the module added.
 

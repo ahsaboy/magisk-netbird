@@ -1,6 +1,7 @@
 # Changelog
 
 ## v1.4.10 — NetBird v0.81.3
+- Optimized the status watcher: one shared `status --json` call per cycle (was up to three netbird CLI spawns) with the module.prop description now parsed from JSON, and an idle mode while the client is disconnected — route re-checks and watchdog restarts are skipped and the cycle relaxes to `NB_IDLE_UPDATE_INTERVAL` (default 300s), so a downed client costs almost nothing. `webui up` starts a dead daemon on demand (detached, with auto-connect) and refreshes underlay routes immediately on reconnect.
 - Added confirmed connection controls to the WebUI overview: Reconnect/Disconnect (fast daemon-IPC `up`/`down` reusing persisted flags) and Start/Stop daemon. Daemon lifecycle runs detached (`nohup`) with the page polling status, so closing the WebUI cannot interrupt it; every control requires a confirmation dialog. New fixed `webui` service actions: `up`, `down`, `daemon-start`, `daemon-stop`.
 - Fixed the WebUI misreading a disconnected client as a stopped daemon: netbird's `daemonStatus` reports the connection state, so the page now tracks process state and connection state separately. After `webui down` the banner shows "disconnected" (with the stop/start controls intact) instead of switching to the start-daemon card; Connect/Disconnect buttons disable according to the current connection state and a needs-login state is surfaced.
 - Restyled WebUI notices as centered translucent-gray toasts with rounded corners.

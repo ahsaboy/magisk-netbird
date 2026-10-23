@@ -127,6 +127,8 @@ root 命令。管理器的 ACTION 按钮仍保持无参数的“刷新规则并�
 | `NB_WATCHDOG` | `on` | 看门狗：daemon 状态连续无响应时自动重启；`off` 关闭。 |
 | `NB_WATCHDOG_FAILS` | `3` | 连续多少次状态探测失败（每刷新周期一次）后触发重启。 |
 | `NB_WATCHDOG_MAX_RESTARTS` | `10` | 重启预算；连续 5 个健康周期后重置。 |
+| `NB_PROP_UPDATE_INTERVAL` | `60` | 已连接时的监视线周期（秒）：路由复查、看门狗探测与状态刷新（每周期仅一次 `status --json` 调用）。 |
+| `NB_IDLE_UPDATE_INTERVAL` | `300` | 客户端断开时的降频周期：跳过路由复查与看门狗重启，仅刷新状态行；`webui up` 会按需拉起已停止的 daemon 并在重连时恢复 underlay 路由。 |
 
 上表所有变量（以及官方客户端支持的任何其他变量）都可以持久化到
 `/data/adb/netbird/.env`（每行 `KEY=VALUE`，`#` 开头为注释）；真实环境
@@ -145,8 +147,11 @@ NetBird userspace firewall 和 userspace WireGuard，避免 native `ip6tables` �
 
 状态监视线程会在每个刷新周期（默认 60 秒）重新应用 Android root 的 IPv4/IPv6 underlay 路由规则，
 因此 Wi-Fi/蜂窝/双卡网络切换不再需要手动重启。同一监视线程还会在每个周期探测
-daemon 健康，连续 3 次探测无响应即自动重启（看门狗：预算 10 次，连续 5 个
-健康周期后重置——可用 `NB_WATCHDOG*` 调整，`NB_WATCHDOG=off` 关闭）。
+daemon 健康——每周期仅共享一次 `status --json` 调用——连续 3 次探测无响应即自动重启
+（看门狗：预算 10 次，连续 5 个健康周期后重置——可用 `NB_WATCHDOG*` 调整，
+`NB_WATCHDOG=off` 关闭）。客户端主动断开（`netbird down`）期间监视线程自动待机：
+跳过路由复查与看门狗重启，周期放宽到 `NB_IDLE_UPDATE_INTERVAL`（默认 300 秒），
+断开状态下几乎零开销；`webui up` 会按需拉起已死的 daemon 并在重连时立即刷新 underlay 路由。
 `netbird.service stop`（以及卸载）会清除模块添加的所有 ip 规则和 iptables 规则。
 
 ## 动态状态

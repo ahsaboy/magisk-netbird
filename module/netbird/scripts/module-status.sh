@@ -4,6 +4,9 @@ DIR=$(dirname "$(realpath "$0")")
 . "$DIR/../settings.sh"
 
 prop_update_interval="${NB_PROP_UPDATE_INTERVAL:-60}"
+# Relaxed cycle while the client is intentionally disconnected (watchdog and
+# route re-checks are skipped there; only the status line refreshes).
+idle_update_interval="${NB_IDLE_UPDATE_INTERVAL:-300}"
 watch_pid_file="$NB_RUN_DIR/module-status.pid"
 default_description="NetBird CLI daemon for Magisk with DNS management disabled by default."
 
@@ -35,16 +38,6 @@ daemon_running() {
   [ -n "$pid" ] && [ -r "/proc/$pid/status" ]
 }
 
-status_field() {
-  key="$1"
-  awk -F': ' -v key="$key" '$1 == key { print $2; exit }'
-}
-
-clean_value() {
-  tr '\r\n' '  ' |
-    sed 's/[[:cntrl:]]//g; s/  */ /g; s/^ *//; s/ *$//'
-}
-
 memory_usage() {
   pid="$(daemon_pid)"
   [ -n "$pid" ] || return 1
@@ -73,28 +66,6 @@ ca_count() {
   esac
 }
 
-short_peers() {
-  peers="$1"
-  echo "$peers" | awk '{
-    if ($2 == "Connected" || $3 == "Connected") {
-      print $1
-    } else {
-      print $0
-    }
-  }'
-}
-
-short_available() {
-  value="$1"
-  echo "$value" | awk '{
-    if ($2 == "Available" || $3 == "Available") {
-      print $1
-    } else {
-      print $0
-    }
-  }'
-}
-
 # `netbird status --json` with a hard timeout so a wedged socket cannot hang
 # the watcher (used by the watchdog probe and the peer details below).
 nb_with_timeout() {
@@ -109,8 +80,34 @@ status_json() {
   nb_with_timeout netbird --daemon-addr "$NB_DAEMON_ADDR" status --json 2>/dev/null
 }
 
-daemon_responsive() {
-  nb_with_timeout netbird --daemon-addr "$NB_DAEMON_ADDR" status >/dev/null 2>&1
+# --- JSON helpers (no jq on Android) -----------------------------------------
+# First "{...}" object value of a key whose object has no nested objects
+# (management, signal). Sections containing a details array (peers, relays)
+# are cut at "details" instead.
+json_section() {
+  printf '%s\n' "$1" | grep -o "\"$2\":{[^}]*}" | head -n 1
+}
+
+json_bool_field() {
+  printf '%s\n' "$1" | grep -o "\"$2\":\(true\|false\)" | head -n 1 | cut -d: -f2
+}
+
+json_connected_label() {
+  case "$(json_bool_field "$1" connected)" in
+    true) echo "Connected" ;;
+    false) echo "Disconnected" ;;
+    *) echo "" ;;
+  esac
+}
+
+# Connection state from a status --json blob: "connected", "idle" (client
+# intentionally disconnected / needs login), or "other" (connecting, unknown).
+watch_connection_state() {
+  case "$(json_field "$1" daemonStatus)" in
+    Connected) echo "connected" ;;
+    Disconnected | Needs*) echo "idle" ;;
+    *) echo "other" ;;
+  esac
 }
 
 # Print "<direct> <relayed>" counts for Connected peers in a status --json blob.
@@ -216,16 +213,19 @@ print_peers() {
 }
 
 # --- Watchdog -----------------------------------------------------------------
-# Probe daemon health once per watch cycle; after NB_WATCHDOG_FAILS consecutive
-# failures kill and restart it (bounded by NB_WATCHDOG_MAX_RESTARTS, budget
-# reset after NB_WATCHDOG_HEALTHY_CYCLES healthy cycles). Only acts when the
-# last start/stop marked the daemon as desired-up and a login state exists.
+# Probe daemon health once per watch cycle using the shared status blob; after
+# NB_WATCHDOG_FAILS consecutive failures kill and restart it (bounded by
+# NB_WATCHDOG_MAX_RESTARTS, budget reset after 5 healthy cycles). Only acts
+# when the last start/stop marked the daemon as desired-up and a login state
+# exists. The watch loop additionally skips this entirely while the client is
+# intentionally disconnected.
 watchdog_check() {
+  wd_blob="${1:-}"
   [ "$NB_WATCHDOG" = "off" ] && return 0
   [ -f "$NB_RUN_DIR/netbird.desired" ] || return 0
   [ -f "$NB_STATE_DIR/state.json" ] || return 0
 
-  if daemon_running && daemon_responsive; then
+  if daemon_running && [ -n "$wd_blob" ]; then
     wd_fails=0
     wd_healthy=$((wd_healthy + 1))
     if [ "$wd_healthy" -ge 5 ] && [ "$wd_restarts" -gt 0 ]; then
@@ -295,39 +295,58 @@ build_description() {
     return 0
   fi
 
-  status_text="$(netbird --daemon-addr "$NB_DAEMON_ADDR" status 2>/dev/null || true)"
-  if [ -z "$status_text" ]; then
+  # Reuse the caller's probe when available (the watch loop captures the
+  # blob once per cycle and shares it with the watchdog).
+  json_blob="${1:-}"
+  [ -n "$json_blob" ] || json_blob="$(status_json)"
+  if [ -z "$json_blob" ]; then
     echo "NB=running | Status=unavailable  Mem=$mem | CA=$cas  Upd=$now"
     return 0
   fi
 
-  fqdn="$(printf '%s\n' "$status_text" | status_field "FQDN" | clean_value)"
-  ip="$(printf '%s\n' "$status_text" | status_field "NetBird IP" | clean_value)"
-  ipv6="$(printf '%s\n' "$status_text" | status_field "NetBird IPv6" | clean_value)"
-  peers="$(printf '%s\n' "$status_text" | status_field "Peers count" | clean_value)"
-  peers="$(short_peers "$peers" | clean_value)"
-  management="$(printf '%s\n' "$status_text" | status_field "Management" | clean_value)"
-  signal="$(printf '%s\n' "$status_text" | status_field "Signal" | clean_value)"
-  relays="$(printf '%s\n' "$status_text" | status_field "Relays" | clean_value)"
-  relays="$(short_available "$relays" | clean_value)"
-  iface="$(printf '%s\n' "$status_text" | status_field "Interface type" | clean_value)"
-  port="$(printf '%s\n' "$status_text" | status_field "Wireguard port" | clean_value)"
+  fqdn="$(json_field "$json_blob" fqdn)"
+  ip="$(json_field "$json_blob" netbirdIp)"
+  ip="${ip%%/*}"
+  ipv6="$(json_field "$json_blob" netbirdIpv6)"
+  ipv6="${ipv6%%/*}"
 
-  # Direct/relay split of connected peers from status --json (best effort).
-  dr_txt=""
-  json_blob="$(status_json)"
-  if [ -n "$json_blob" ]; then
-    set -- $(peer_dr_counts "$json_blob")
-    case "$1$2" in
-      '' | *[!0-9]*) ;;
-      *)
-        if [ "$1" -gt 0 ] || [ "$2" -gt 0 ]; then
-          dr_txt=" [P$1 R$2]"
-        fi
-        ;;
-    esac
+  peers_head="$(printf '%s\n' "$json_blob" | sed 's/"details".*//')"
+  ptotal="$(json_num_field "$peers_head" total)"
+  pconn="$(json_num_field "$peers_head" connected)"
+  if [ -n "$ptotal" ] && [ -n "$pconn" ]; then
+    peers="$pconn/$ptotal"
+  else
+    peers=""
   fi
-  unset json_blob
+
+  management="$(json_connected_label "$(json_section "$json_blob" management)")"
+  signal="$(json_connected_label "$(json_section "$json_blob" signal)")"
+
+  relays_part="$(printf '%s\n' "$json_blob" | sed 's/.*"relays":{//')"
+  relays_part="${relays_part%%\"details\"*}"
+  rtotal="$(printf '%s\n' "$relays_part" | grep -o '"total":[0-9]*' | head -n 1 | cut -d: -f2)"
+  ravail="$(printf '%s\n' "$relays_part" | grep -o '"available":[0-9]*' | head -n 1 | cut -d: -f2)"
+  relays=""
+  [ -n "$ravail" ] && [ -n "$rtotal" ] && relays="$ravail/$rtotal"
+
+  iface=""
+  case "$(json_bool_field "$json_blob" usesKernelInterface)" in
+    true) iface="Kernel" ;;
+    false) iface="Userspace" ;;
+  esac
+  port="$(json_num_field "$json_blob" wireguardPort)"
+
+  # Direct/relay split of connected peers from the same blob (best effort).
+  dr_txt=""
+  set -- $(peer_dr_counts "$json_blob")
+  case "$1$2" in
+    '' | *[!0-9]*) ;;
+    *)
+      if [ "$1" -gt 0 ] || [ "$2" -gt 0 ]; then
+        dr_txt=" [P$1 R$2]"
+      fi
+      ;;
+  esac
 
   summary="NB=running"
   [ -n "$fqdn" ] && summary="$summary | Host=$fqdn"
@@ -339,7 +358,7 @@ build_description() {
   [ -n "$peers" ] && summary="$summary | Peers=$peers$dr_txt"
   summary="$summary  Mem=$mem"
   [ -n "$management" ] && summary="$summary | Mgmt=$management"
-  [ -n "$signal" ] && summary="$summary  Sig=$signal"
+  [ -n "$signal" ] && summary="$summary | Sig=$signal"
   [ -n "$relays" ] && summary="$summary | Relay=$relays"
   if [ -n "$iface" ] && [ -n "$port" ]; then
     summary="$summary  IF=$iface:$port"
@@ -348,7 +367,7 @@ build_description() {
   fi
   summary="$summary$wd_txt | CA=$cas  Upd=$now"
 
-  printf '%s\n' "$summary" | clean_value
+  printf '%s\n' "$summary"
 }
 
 ksu_publish_description() {
@@ -363,7 +382,7 @@ ksu_publish_description() {
 }
 
 write_module_prop() {
-  description="$(build_description)"
+  description="$(build_description "${1:-}")"
   [ -n "$description" ] || description="$default_description"
 
   ksu_publish_description
@@ -472,14 +491,35 @@ case "${1:-update}" in
     wd_restarts="$(cat "$NB_RUN_DIR/watchdog.count" 2>/dev/null || true)"
     case "$wd_restarts" in '' | *[!0-9]*) wd_restarts=0 ;; esac
     while true; do
-      # Re-check the Android route rule regularly so a Wi-Fi/cellular switch
-      # does not leave the daemon with a stale routing table lookup.
-      if [ -x "$NB_SCRIPTS_DIR/netbird.service" ]; then
-        "$NB_SCRIPTS_DIR/netbird.service" route >/dev/null 2>&1 || true
+      # ONE netbird invocation per cycle, shared by the watchdog and the
+      # module.prop description refresh. An empty blob means the daemon is
+      # not answering (probe failure).
+      status_blob="$(status_json)"
+      cycle_interval="$prop_update_interval"
+      cycle_idle=0
+
+      if daemon_running; then
+        case "$(watch_connection_state "$status_blob")" in
+          idle)
+            # Client intentionally disconnected: no tunnel traffic to keep
+            # alive, so skip route re-checks and watchdog restarts and relax
+            # the cycle. module.prop still refreshes with the idle state.
+            cycle_idle=1
+            cycle_interval="$idle_update_interval"
+            ;;
+          *)
+            # Re-check the Android route rule regularly so a Wi-Fi/cellular
+            # switch does not leave the daemon with a stale table lookup.
+            if [ -x "$NB_SCRIPTS_DIR/netbird.service" ]; then
+              "$NB_SCRIPTS_DIR/netbird.service" route >/dev/null 2>&1 || true
+            fi
+            ;;
+        esac
       fi
-      watchdog_check
-      write_module_prop >/dev/null 2>&1 || true
-      sleep "$prop_update_interval"
+
+      [ "$cycle_idle" -eq 0 ] && watchdog_check "$status_blob"
+      write_module_prop "$status_blob" >/dev/null 2>&1 || true
+      sleep "$cycle_interval"
     done
     ;;
   stop)

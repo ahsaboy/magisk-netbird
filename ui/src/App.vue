@@ -241,7 +241,16 @@ async function waitForDaemon(running) {
 }
 function connectionAction(action, message) {
   return confirmAction(message, async () => {
-    throwOnError(await runAction(action));
+    const result = throwOnError(await runAction(action));
+    if (parseJson(result)?.started) {
+      // The daemon was dead and got started detached on demand; wait for it
+      // to come up (auto-connect then restores the tunnel).
+      tell(t("daemonStarting"));
+      if (!await waitForDaemon(true)) { tell(t("daemonTimeout"), "fail"); return; }
+      tell(t("daemonStarted"));
+      await load("status", true);
+      return;
+    }
     await load("status", true);
     tell(t("operationDone"));
   });
