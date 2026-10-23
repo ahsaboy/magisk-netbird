@@ -1,14 +1,12 @@
 # Changelog
 
 ## v1.4.10 — NetBird v0.81.3
-
 - Added confirmed connection controls to the WebUI overview: Reconnect/Disconnect (fast daemon-IPC `up`/`down` reusing persisted flags) and Start/Stop daemon. Daemon lifecycle runs detached (`nohup`) with the page polling status, so closing the WebUI cannot interrupt it; every control requires a confirmation dialog. New fixed `webui` service actions: `up`, `down`, `daemon-start`, `daemon-stop`.
+- Fixed the WebUI misreading a disconnected client as a stopped daemon: netbird's `daemonStatus` reports the connection state, so the page now tracks process state and connection state separately. After `webui down` the banner shows "disconnected" (with the stop/start controls intact) instead of switching to the start-daemon card; Connect/Disconnect buttons disable according to the current connection state and a needs-login state is surfaced.
 - Restyled WebUI notices as centered translucent-gray toasts with rounded corners.
 - Silenced the 5-second refresh cooldown on implicit loads (tab switches no longer pop an "updated recently" toast), deduplicated concurrent identical commands, and added a background Networks prefetch so the first Networks view renders instantly.
-
 - Fixed the watchdog restart path: `kill "$pid"2>/dev/null` was missing a space, so TERM/KILL targeted a nonexistent PID and a wedged daemon was never actually killed before the restart attempt.
 - Deduplicated the busybox-timeout wrappers in the status watcher (`nb_with_timeout`) and made `client_cmd` delegate to `webui_client`.
-
 - Removed the WebUI forwarding-rules view: NetBird dropped the `forwarding` CLI command in v0.81.0 together with management-side ingress ports, so the view always failed with `unknown command "forwarding"`.
 - The `webui forwarding` service action now returns an explicit "no longer available in NetBird v0.81.0+" error instead of passing the raw CLI failure through, so stale cached WebUI pages show a clear message.
 - The Networks view now shows a loading state while retrying after a failed load, matching the removed forwarding view's behavior.

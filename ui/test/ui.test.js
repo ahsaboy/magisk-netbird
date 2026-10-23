@@ -218,6 +218,22 @@ describe("mobile WebUI", () => {
     expect(commands.some((command) => command.endsWith("webui down"))).toBe(true);
   });
 
+  it("keeps daemon controls when the client is disconnected (daemon alive)", async () => {
+    window.ksu.exec = (command, _options, callbackName) => {
+      commands.push(command);
+      const stdout = command.endsWith("webui status")
+        ? JSON.stringify({ daemonStatus: "Disconnected", peers: [] })
+        : "";
+      window[callbackName](0, stdout, "");
+    };
+    await mountApp();
+    expect(wrapper.text()).toContain("未连接");
+    expect(findButton("停止守护进程")).toBeTruthy();
+    expect(findButton("启动守护进程")).toBeUndefined();
+    expect(findButton("断开网络").element.disabled).toBe(true);
+    expect(findButton("重连网络").element.disabled).toBe(false);
+  });
+
   it("starts the daemon detached and polls status until it is running", async () => {
     vi.useFakeTimers();
     try {

@@ -17,11 +17,25 @@ export function connectionValue(value) {
 export function daemonValue(data) {
   const value = firstValue(data, ["daemonStatus", "daemonState", "daemon"]);
   const normalized = String(value && typeof value === "object" ? firstValue(value, ["state", "status", "value"]) : value).toLowerCase();
-  if (["stopped", "disconnected", "offline", "down"].some((item) => normalized.includes(item))) return "stopped";
-  if (["connected", "running", "ready", "started", "online"].some((item) => normalized.includes(item))) return "running";
+  // netbird's daemonStatus reports the CONNECTION state (Connected /
+  // Disconnected / NeedsLogin / ...) while the daemon process is alive.
+  // Only the module's own envelope ({"daemon":"stopped"}, errno 1) or a
+  // literal false means the process itself is down.
+  if (value === false) return "stopped";
   if (value === true) return "running";
-  if (value === false || value === "-") return "stopped";
-  return "error";
+  if (normalized === "-" || ["stopped", "down", "offline"].includes(normalized)) return "stopped";
+  return "running";
+}
+
+export function connectionState(data) {
+  const value = firstValue(data, ["daemonStatus", "daemonState", "daemon"]);
+  const normalized = String(value && typeof value === "object" ? firstValue(value, ["state", "status", "value"]) : value).toLowerCase();
+  if (value === true || value === false) return "-";
+  if (normalized.includes("disconnected")) return "disconnected";
+  if (normalized.includes("connecting")) return "connecting";
+  if (normalized.includes("login")) return "needs-login";
+  if (normalized.includes("connected")) return "connected";
+  return "-";
 }
 
 export function collectPeers(value, output = [], seen = new Set()) {
@@ -61,6 +75,7 @@ export function statusModel(data) {
   const fallbackConnected = peers.filter((peer) => String(firstValue(peer, ["status", "state"])).toLowerCase().includes("connected")).length;
   return {
     daemon: daemonValue(data),
+    connection: connectionState(data),
     fqdn: firstValue(data, ["fqdn", "hostname"]),
     ip: firstValue(data, ["netbirdIp", "netbirdIPv4", "netbirdIpv4"]),
     ipv6: firstValue(data, ["netbirdIpV6", "netbirdIPv6", "netbirdIpv6"]),

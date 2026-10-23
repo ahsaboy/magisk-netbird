@@ -69,7 +69,7 @@ const refreshedAt = ref("");
 const notice = ref("");
 const noticeType = ref("success");
 const lastLoaded = new Map();
-const model = ref({ daemon: "error", fqdn: "-", ip: "-", ipv6: "-", management: "-", signal: "-", interfaceType: "-", port: "-", version: "-", total: "-", connected: "-", peers: [] });
+const model = ref({ daemon: "error", connection: "-", fqdn: "-", ip: "-", ipv6: "-", management: "-", signal: "-", interfaceType: "-", port: "-", version: "-", total: "-", connected: "-", peers: [] });
 const networkItems = ref([]);
 const diagnosticItems = ref([]);
 const diagnosticLoading = ref("");
@@ -81,7 +81,16 @@ const pendingAction = ref(null);
 let touchStartX = 0;
 let touchStartY = 0;
 let diagnosticRequestId = 0;
-const statusLabel = computed(() => statusLoading.value ? t("checking") : model.value.daemon === "running" ? t("running") : model.value.daemon === "stopped" ? t("stopped") : t("failed"));
+const CONNECTION_LABELS = { connected: "connected", disconnected: "disconnected", connecting: "connecting", "needs-login": "needsLogin" };
+const statusLabel = computed(() => {
+  if (statusLoading.value) return t("checking");
+  if (model.value.daemon !== "running") return t(model.value.daemon === "stopped" ? "stopped" : "failed");
+  return t(CONNECTION_LABELS[model.value.connection] || "running");
+});
+const statusTone = computed(() => {
+  if (model.value.daemon !== "running") return model.value.daemon;
+  return model.value.connection === "connected" ? "connected" : "stopped";
+});
 const connectedCount = computed(() => model.value.connected !== "-" ? model.value.connected : model.value.peers.filter((peer) => String(firstValue(peer, ["status", "state"])).toLowerCase().includes("connected")).length);
 
 function connectionText(value) {
@@ -340,7 +349,7 @@ onUnmounted(() => window.clearTimeout(networksPrefetchTimer));
           <div class="status-top">
             <div class="status-icon"><Wifi :size="21" /></div>
             <div class="status-copy"><p>{{ t('daemon') }}</p><h2>{{ statusLabel }}</h2></div>
-            <span class="status-indicator" :class="model.daemon"></span>
+            <span class="status-indicator" :class="statusTone"></span>
           </div>
           <div class="status-ip"><span>{{ t('ipv4') }}</span><strong>{{ model.ip }}</strong></div>
           <div class="status-metrics">
@@ -366,10 +375,10 @@ onUnmounted(() => window.clearTimeout(networksPrefetchTimer));
             </div>
           </section>
           <section class="section-card">
-            <div class="section-heading"><div><span class="section-kicker">POWER</span><h2>{{ t('powerTitle') }}</h2></div><span class="status-indicator" :class="model.daemon"></span></div>
+            <div class="section-heading"><div><span class="section-kicker">POWER</span><h2>{{ t('powerTitle') }}</h2></div><span class="status-indicator" :class="statusTone"></span></div>
             <div v-if="model.daemon === 'running'" class="action-grid">
-              <Button variant="default" class="justify-start" :disabled="busy" @click="connectionAction('webui up', t('confirmUp'))"><RefreshCw :size="16" />{{ t('btnUp') }}</Button>
-              <Button variant="outline" class="justify-start" :disabled="busy" @click="connectionAction('webui down', t('confirmDown'))"><WifiOff :size="16" />{{ t('btnDown') }}</Button>
+              <Button variant="default" class="justify-start" :disabled="busy || model.connection === 'connected'" @click="connectionAction('webui up', t('confirmUp'))"><RefreshCw :size="16" />{{ t('btnUp') }}</Button>
+              <Button variant="outline" class="justify-start" :disabled="busy || model.connection === 'disconnected'" @click="connectionAction('webui down', t('confirmDown'))"><WifiOff :size="16" />{{ t('btnDown') }}</Button>
               <Button variant="outline" class="justify-start col-span-2" :disabled="busy" @click="daemonControl('webui daemon-stop')"><Power :size="16" />{{ t('btnDaemonStop') }}</Button>
             </div>
             <div v-else class="action-grid">

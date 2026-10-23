@@ -8,6 +8,18 @@ test("daemon states normalize booleans and connection strings", () => {
   assert.equal(daemonValue({ daemonStatus: false }), "stopped");
 });
 
+test("a disconnected client does not imply a stopped daemon", () => {
+  assert.equal(daemonValue({ daemonStatus: "Disconnected" }), "running");
+  assert.equal(daemonValue({ daemonStatus: "NeedsLogin" }), "running");
+  assert.equal(daemonValue({ daemon: "stopped" }), "stopped");
+  const model = statusModel({ daemonStatus: "Disconnected", peers: [] });
+  assert.equal(model.daemon, "running");
+  assert.equal(model.connection, "disconnected");
+  const login = statusModel({ daemonStatus: "NeedsLogin" });
+  assert.equal(login.daemon, "running");
+  assert.equal(login.connection, "needs-login");
+});
+
 test("status model reads summary and peer connection details", () => {
   const model = statusModel({
     daemonStatus: "running",
