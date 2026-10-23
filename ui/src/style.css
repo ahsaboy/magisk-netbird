@@ -146,6 +146,7 @@ button { touch-action: manipulation; }
 .status-copy p { margin: 0; color: #ffffffa8; font-size: 11px; }
 .status-copy h2 { margin: 2px 0 0; font-size: 20px; font-weight: 700; line-height: 1.2; }
 .status-indicator { width: 9px; height: 9px; flex: 0 0 auto; border-radius: 999px; background: #a9df73; box-shadow: 0 0 0 4px #a9df7330; }
+.status-error { margin: 2px 0 0; color: var(--muted-foreground); font-size: 11px; line-height: 1.4; overflow-wrap: anywhere; }
 .status-indicator.stopped { background: #e8b568; box-shadow: 0 0 0 4px #e8b56830; }
 .status-indicator.error { background: #ee8c82; box-shadow: 0 0 0 4px #ee8c8230; }
 .status-ip { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; padding: 12px 16px; border-top: 1px solid #ffffff26; }

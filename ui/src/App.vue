@@ -66,11 +66,13 @@ const busy = ref(false);
 const statusLoading = ref(true);
 const networksLoaded = ref(false);
 const refreshedAt = ref("");
+const statusError = ref("");
 const notice = ref("");
 const noticeType = ref("success");
 const lastLoaded = new Map();
 const model = ref({ daemon: "error", connection: "-", fqdn: "-", ip: "-", ipv6: "-", management: "-", signal: "-", interfaceType: "-", port: "-", version: "-", total: "-", connected: "-", peers: [] });
 const networkItems = ref([]);
+const networksError = ref("");
 const diagnosticItems = ref([]);
 const diagnosticLoading = ref("");
 const profileName = ref("");
@@ -117,7 +119,17 @@ async function loadStatus() {
     const data = parseJson(result);
     model.value = data ? statusModel(data) : { ...model.value, daemon: result.errno === 1 ? "stopped" : "error" };
     refreshedAt.value = new Date().toLocaleTimeString();
-    if (result.errno !== 0 && model.value.daemon !== "stopped") tell(result.stderr || t("failed"), "fail");
+    // Bridge failures surface inside the banner (in-page, not a toast).
+    statusError.value = result.errno !== 0 && model.value.daemon === "error"
+      ? (result.stderr || result.stdout || "").trim()
+      : "";
+    // A stopped daemon cannot serve reads; drop dependent caches so a view
+    // never shows rows from before the stop (even inside the cooldown).
+    if (model.value.daemon === "stopped") {
+      networkItems.value = [];
+      networksLoaded.value = false;
+      networksError.value = "";
+    }
     return result;
   } finally { statusLoading.value = false; }
 }
@@ -126,6 +138,14 @@ async function load(action, force = false) {
   // One shell per action: a double-tapped retry/refresh must not spawn a
   // second identical root command while the first is still running.
   if (inFlight.has(action)) return false;
+  // A stopped daemon can only fail reads; show the stopped placeholder and
+  // drop cached rows instead of firing a doomed command.
+  if (action === "networks" && model.value.daemon === "stopped") {
+    networkItems.value = [];
+    networksLoaded.value = true;
+    networksError.value = "";
+    return false;
+  }
   const now = Date.now();
   // Silent cooldown for implicit loads (tab switches, prefetch); explicit
   // refreshes pass force=true and bypass it.
@@ -135,7 +155,7 @@ async function load(action, force = false) {
   const isDiagnostic = ["version", "state", "profiles"].includes(action);
   const requestId = isDiagnostic ? ++diagnosticRequestId : 0;
   if (isDiagnostic) diagnosticLoading.value = action;
-  if (action === "networks") networksLoaded.value = false;
+  if (action === "networks") { networksLoaded.value = false; networksError.value = ""; }
   try {
     if (action === "status") await loadStatus();
     else {
@@ -149,8 +169,10 @@ async function load(action, force = false) {
     return true;
   } catch (error) {
     if (isDiagnostic && requestId !== diagnosticRequestId) return false;
-    if (action === "networks") networksLoaded.value = true;
-    tell(error.message, "fail");
+    // Implicit reads report in-page, never via toast; toasts are reserved
+    // for explicit switch/confirm actions.
+    if (action === "networks") { networksLoaded.value = true; networksError.value = error.message; }
+    else if (isDiagnostic) showDiagnostic(error.message);
     return false;
   } finally {
     inFlight.delete(action);
@@ -352,7 +374,7 @@ onUnmounted(() => window.clearTimeout(networksPrefetchTimer));
         <section class="status-banner" aria-live="polite">
           <div class="status-top">
             <div class="status-icon"><Wifi :size="21" /></div>
-            <div class="status-copy"><p>{{ t('daemon') }}</p><h2>{{ statusLabel }}</h2></div>
+            <div class="status-copy"><p>{{ t('daemon') }}</p><h2>{{ statusLabel }}</h2><p v-if="model.daemon === 'error' && statusError" class="status-error">{{ statusError }}</p></div>
             <span class="status-indicator" :class="statusTone"></span>
           </div>
           <div class="status-ip"><span>{{ t('ipv4') }}</span><strong>{{ model.ip }}</strong></div>
@@ -419,7 +441,8 @@ onUnmounted(() => window.clearTimeout(networksPrefetchTimer));
               </DropdownMenuRoot>
               <Button variant="outline" size="icon" class="peer-refresh-trigger" :aria-label="t('refresh')" :title="t('refresh')" :disabled="busy || statusLoading" @click="load('status', true)"><RefreshCw :size="15" :class="statusLoading ? 'animate-spin' : ''" /></Button>
             </div></div>
-            <div v-if="statusLoading && !model.peers.length" class="empty-state" role="status"><LoaderCircle class="animate-spin" :size="21" /><p>{{ t('checking') }}</p></div>
+            <div v-if="model.daemon === 'stopped' && !statusLoading" class="empty-state" role="status"><div class="empty-icon"><Users :size="19" /></div><p>{{ t('daemonStoppedHint') }}</p></div>
+            <div v-else-if="statusLoading && !model.peers.length" class="empty-state" role="status"><LoaderCircle class="animate-spin" :size="21" /><p>{{ t('checking') }}</p></div>
             <div v-else-if="!model.peers.length" class="empty-state"><div class="empty-icon"><Users :size="19" /></div><p>{{ t('noPeers') }}</p></div>
             <div v-else-if="!peerItems.length" class="empty-state"><div class="empty-icon"><ListFilter :size="18" /></div><p>{{ t('filterNoMatches') }}</p></div>
             <article v-for="(peer, index) in peerItems" :key="firstValue(peer, ['fqdn', 'name']) + index" class="peer-row">
@@ -440,7 +463,9 @@ onUnmounted(() => window.clearTimeout(networksPrefetchTimer));
             <div class="section-heading"><div><span class="section-kicker">ROUTES</span><h2>{{ t('networkTitle') }}</h2></div><Button variant="outline" size="sm" :disabled="busy" @click="load('networks', true)"><RefreshCw :size="14" />{{ t('refresh') }}</Button></div>
             <p class="section-hint">{{ t('routeHint') }}</p>
             <div class="bulk-actions"><Button size="sm" :disabled="busy" @click="changeNetwork('select', 'all')"><Check :size="14" />{{ t('acceptAll') }}</Button><Button variant="outline" size="sm" :disabled="busy" @click="changeNetwork('deselect', 'all')"><X :size="14" />{{ t('disableAll') }}</Button></div>
-            <div v-if="!networkItems.length" class="empty-state" role="status"><LoaderCircle v-if="!networksLoaded" class="animate-spin" :size="20" /><div v-else class="empty-icon"><Route :size="19" /></div><p>{{ networksLoaded ? t('noData') : t('checking') }}</p><Button v-if="networksLoaded" variant="ghost" size="sm" @click="load('networks', true)">{{ t('retry') }}</Button></div>
+            <div v-if="model.daemon === 'stopped'" class="empty-state" role="status"><div class="empty-icon"><Power :size="19" /></div><p>{{ t('daemonStoppedHint') }}</p></div>
+            <div v-else-if="networksError" class="empty-state" role="alert"><CircleAlert :size="18" /><p>{{ networksError }}</p><Button variant="ghost" size="sm" @click="load('networks', true)">{{ t('retry') }}</Button></div>
+            <div v-else-if="!networkItems.length" class="empty-state" role="status"><LoaderCircle v-if="!networksLoaded" class="animate-spin" :size="20" /><div v-else class="empty-icon"><Route :size="19" /></div><p>{{ networksLoaded ? t('noData') : t('checking') }}</p><Button v-if="networksLoaded" variant="ghost" size="sm" @click="load('networks', true)">{{ t('retry') }}</Button></div>
             <article v-for="item in networkItems" :key="item.id" class="network-row">
               <div class="network-ident"><strong>{{ item.id }}</strong><span>{{ item.network }}</span><span v-if="item.domains !== '-'">{{ t('domains') }}: {{ item.domains }}</span><span v-if="item.resolvedIps !== '-'">{{ t('resolved') }}: {{ item.resolvedIps }}</span></div>
               <Badge variant="outline" :class="item.status.toLowerCase() === 'selected' ? 'border-primary/30 bg-secondary text-primary' : 'border-accent-foreground/20 bg-accent text-accent-foreground'">{{ item.status.toLowerCase() === 'selected' ? t('selected') : t('notSelected') }}</Badge>

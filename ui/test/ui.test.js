@@ -238,6 +238,38 @@ describe("mobile WebUI", () => {
     expect(findButton("重连网络").element.disabled).toBe(false);
   });
 
+  it("drops cached networks and shows a stopped placeholder after the daemon stops", async () => {
+    let stopped = false;
+    window.ksu.exec = (command, _options, callbackName) => {
+      commands.push(command);
+      if (command.endsWith("webui status")) {
+        if (stopped) return window[callbackName](1, "{\"daemon\":\"stopped\"}", "");
+        return window[callbackName](0, JSON.stringify({ daemonStatus: "Connected", peers: [] }), "");
+      }
+      if (command.endsWith("webui networks")) {
+        return window[callbackName](0, "- ID: network-a\n  Network: 10.10.0.0/24\n  Status: Not selected", "");
+      }
+      window[callbackName](0, "", "");
+    };
+    await mountApp();
+    await openTab("networks");
+    expect(wrapper.text()).toContain("network-a");
+    const networksReadsBeforeStop = commands.filter((command) => command.endsWith("webui networks")).length;
+
+    stopped = true;
+    await openTab("peers");
+    // force a status reload (the tab-switch read respects the 5s cooldown)
+    const page = wrapper.find(".page-scroll");
+    await page.trigger("touchstart", { touches: [{ clientX: 150, clientY: 200 }] });
+    await page.trigger("touchend", { changedTouches: [{ clientX: 150, clientY: 340 }] });
+    await flushPromises();
+    expect(wrapper.text()).toContain("已停止");
+    await openTab("networks");
+    expect(wrapper.text()).toContain("守护进程已停止");
+    expect(wrapper.text()).not.toContain("network-a");
+    expect(commands.filter((command) => command.endsWith("webui networks")).length).toBe(networksReadsBeforeStop);
+  });
+
   it("starts the daemon detached and polls status until it is running", async () => {
     vi.useFakeTimers();
     try {
