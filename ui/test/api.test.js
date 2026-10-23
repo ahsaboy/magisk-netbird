@@ -30,7 +30,7 @@ test("action arguments are shell-quoted and arbitrary actions are rejected", asy
 test("the bridge exposes only fixed reads and approved actions", async () => {
   const reads = [
     ["status", "webui status"], ["version", "webui version"],
-    ["networks", "webui networks"], ["forwarding", "webui forwarding"],
+    ["networks", "webui networks"],
     ["state", "webui state"], ["profiles", "webui profile-list"]
   ];
   for (const [action] of reads) await runRead(action);

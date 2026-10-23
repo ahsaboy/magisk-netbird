@@ -92,7 +92,7 @@ ACTION 页面持续等待；持续跟踪日志仍使用 `su -c 'netbird.service 
 `su -c 'netbird.service peers'`。
 
 KernelSU 用户可以打开模块的 **WebUI** 使用移动端优先的控制台。页面会把 status JSON
-解析为连接卡片和 Peers 列表，并分开展示 Peers、Networks/Routes、转发规则、健康检查、版本、状态存储、
+解析为连接卡片和 Peers 列表，并分开展示 Peers、Networks/Routes、健康检查、版本、状态存储、
 Profiles。Network 选择使用固定的 `networks select`/`deselect` 动作，单个
 Network 的启用会追加到当前选择。`0.0.0.0/0` 或 `::/0` 表示管理端提供的出口路由，出口节点本身不由本模块选择。
 

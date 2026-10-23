@@ -5,7 +5,6 @@ const READ_COMMANDS = Object.freeze({
   status: "webui status",
   version: "webui version",
   networks: "webui networks",
-  forwarding: "webui forwarding",
   state: "webui state",
   profiles: "webui profile-list"
 });

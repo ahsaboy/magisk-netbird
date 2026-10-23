@@ -567,7 +567,7 @@ up_cmd() {
 usage() {
   echo "usage: netbird.service {start|stop|restart|status|up|down|login|log|refresh|route|peers|version|webui}"
   echo "  log follows the client log; use log --once for the latest 200 lines."
-  echo "  webui actions: status health version networks networks-select networks-append networks-deselect forwarding state profile-list profile-select"
+  echo "  webui actions: status health version networks networks-select networks-append networks-deselect state profile-list profile-select"
   echo "  up always adds --disable-dns before your extra flags."
   echo "  peers shows per-peer connection type (P2P/Relayed), latency and traffic."
   echo "  Set NB_DISABLE_IPV6=true and/or NB_DISABLE_FIREWALL=true to append those on up."
@@ -690,8 +690,11 @@ case "${1:-}" in
         exit "$?"
         ;;
       forwarding)
-        webui_client forwarding list
-        exit "$?"
+        # netbird removed the `forwarding` CLI command in v0.81.0 (ingress
+        # ports were dropped from management). Keep the action as an explicit
+        # error so stale WebUI caches get a clear message, not a stack trace.
+        echo "Forwarding rules are no longer available in NetBird v0.81.0+." >&2
+        exit 2
         ;;
       state)
         webui_client state list

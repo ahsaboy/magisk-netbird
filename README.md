@@ -97,7 +97,7 @@ same actions can also be invoked directly, for example `su -c 'netbird.service p
 
 KernelSU users can open the module's **WebUI** for a mobile-first control panel.
 The page parses status JSON into connection cards and peer rows, and provides separate
-views for Peers, Networks/Routes, forwarding rules, health checks, versions, stored
+views for Peers, Networks/Routes, health checks, versions, stored
 state items, and profiles. Network selection uses
 fixed `networks select`/`deselect` actions; selecting one route appends to the current
 selection. A `0.0.0.0/0` or `::/0` entry is an exit route supplied by the management

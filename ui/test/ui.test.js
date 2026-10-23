@@ -31,8 +31,6 @@ beforeEach(() => {
         });
       } else if (command.endsWith("webui networks")) {
         stdout = "- ID: network-a\n  Network: 10.10.0.0/24\n  Status: Not selected";
-      } else if (command.endsWith("webui forwarding")) {
-        stdout = "tcp 0.0.0.0:8080 -> 100.64.0.2:80";
       } else if (command.includes("webui health")) {
         stdout = JSON.stringify({ ok: true });
       } else if (command.endsWith("webui version")) {
@@ -186,7 +184,7 @@ describe("mobile WebUI", () => {
     await mountApp();
     await openTab("networks");
     expect(wrapper.text()).toContain("network-a");
-    expect(wrapper.text()).toContain("0.0.0.0:8080");
+    expect(wrapper.text()).toContain("10.10.0.0/24");
     await findButton("全部启用").trigger("click");
     await flushPromises();
     expect(commands.some((command) => command.endsWith("webui networks-select 'all'"))).toBe(true);
@@ -231,15 +229,15 @@ describe("mobile WebUI", () => {
     expect(wrapper.text()).not.toContain("stale version result");
   });
 
-  it("shows forwarding errors and a loading state while retrying", async () => {
-    let forwardingAttempts = 0;
+  it("shows a section error and a loading state while retrying", async () => {
+    let networksAttempts = 0;
     let completeRetry;
     window.ksu.exec = (command, _options, callbackName) => {
       commands.push(command);
-      if (command.endsWith("webui forwarding")) {
-        forwardingAttempts += 1;
-        if (forwardingAttempts === 1) {
-          window[callbackName](2, "", "forwarding unavailable");
+      if (command.endsWith("webui networks")) {
+        networksAttempts += 1;
+        if (networksAttempts === 1) {
+          window[callbackName](2, "", "networks unavailable");
         } else {
           completeRetry = (errno, stdout, stderr) => window[callbackName](errno, stdout, stderr);
         }
@@ -249,17 +247,15 @@ describe("mobile WebUI", () => {
     };
     await mountApp();
     await openTab("networks");
-    expect(wrapper.text()).toContain("forwarding unavailable");
-    expect(wrapper.text()).not.toContain("没有转发规则");
+    expect(wrapper.text()).toContain("networks unavailable");
 
-    const forwardingSection = wrapper.findAll(".section-card").find((section) => section.text().includes("转发规则"));
-    await findButton("重试", forwardingSection).trigger("click");
+    const networksSection = wrapper.findAll(".section-card").find((section) => section.text().includes("Networks / Routes"));
+    await findButton("重试", networksSection).trigger("click");
     await nextTick();
     expect(wrapper.text()).toContain("读取中");
-    expect(wrapper.text()).not.toContain("没有转发规则");
-    completeRetry(0, "tcp 0.0.0.0:9000 -> 100.64.0.2:90", "");
+    completeRetry(0, "- ID: network-b\n  Network: 10.20.0.0/24\n  Status: Not selected", "");
     await flushPromises();
-    expect(wrapper.text()).toContain("tcp 0.0.0.0:9000 -> 100.64.0.2:90");
+    expect(wrapper.text()).toContain("network-b");
   });
 
   it("checks health, reads diagnostics, and confirms Profile changes", async () => {

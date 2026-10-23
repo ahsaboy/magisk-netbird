@@ -65,15 +65,12 @@ const pageTransition = ref("page-slide-forward");
 const busy = ref(false);
 const statusLoading = ref(true);
 const networksLoaded = ref(false);
-const forwardingLoaded = ref(false);
 const refreshedAt = ref("");
 const notice = ref("");
 const noticeType = ref("success");
 const lastLoaded = new Map();
 const model = ref({ daemon: "error", fqdn: "-", ip: "-", ipv6: "-", management: "-", signal: "-", interfaceType: "-", port: "-", version: "-", total: "-", connected: "-", peers: [] });
 const networkItems = ref([]);
-const forwardingItems = ref([]);
-const forwardingError = ref("");
 const diagnosticItems = ref([]);
 const diagnosticLoading = ref("");
 const profileName = ref("");
@@ -122,17 +119,13 @@ async function load(action, force = false) {
   const isDiagnostic = ["version", "state", "profiles"].includes(action);
   const requestId = isDiagnostic ? ++diagnosticRequestId : 0;
   if (isDiagnostic) diagnosticLoading.value = action;
-  if (action === "forwarding") {
-    forwardingError.value = "";
-    forwardingLoaded.value = false;
-  }
+  if (action === "networks") networksLoaded.value = false;
   try {
     if (action === "status") await loadStatus();
     else {
       const result = throwOnError(await runRead(action));
       if (isDiagnostic && requestId !== diagnosticRequestId) return false;
       if (action === "networks") { networkItems.value = parseNetworks(result.stdout); networksLoaded.value = true; }
-      else if (action === "forwarding") { forwardingItems.value = parseLines(result.stdout, t("noForwarding")); forwardingLoaded.value = true; }
       else if (action === "version") showDiagnostic(result.stdout || t("versionUnavailable"));
       else if (action === "state") showDiagnostic(result.stdout || t("noState"));
       else if (action === "profiles") showDiagnostic(result.stdout || t("noProfiles"));
@@ -141,11 +134,6 @@ async function load(action, force = false) {
   } catch (error) {
     if (isDiagnostic && requestId !== diagnosticRequestId) return false;
     if (action === "networks") networksLoaded.value = true;
-    if (action === "forwarding") {
-      forwardingItems.value = [];
-      forwardingLoaded.value = true;
-      forwardingError.value = error.message;
-    }
     tell(error.message, "fail");
     return false;
   } finally {
@@ -168,7 +156,7 @@ function onTabChange(name) {
   if (page) page.scrollTop = 0;
   window.requestAnimationFrame(() => {
     if (name === "peers") load("status");
-    if (name === "networks") { load("networks"); load("forwarding"); }
+    if (name === "networks") load("networks");
   });
 }
 async function withBusy(action) {
@@ -387,13 +375,6 @@ onMounted(() => load("status", true));
               <Badge variant="outline" :class="item.status.toLowerCase() === 'selected' ? 'border-primary/30 bg-secondary text-primary' : 'border-accent-foreground/20 bg-accent text-accent-foreground'">{{ item.status.toLowerCase() === 'selected' ? t('selected') : t('notSelected') }}</Badge>
               <Button class="network-action" variant="outline" size="sm" :disabled="busy" @click="changeNetwork(item.status.toLowerCase() === 'selected' ? 'deselect' : 'append', item.id)">{{ item.status.toLowerCase() === 'selected' ? t('disable') : t('enable') }}<ChevronRight :size="14" /></Button>
             </article>
-          </section>
-          <section class="section-card">
-            <div class="section-heading"><div><span class="section-kicker">FORWARDING</span><h2>{{ t('forwarding') }}</h2></div><Button variant="ghost" size="sm" :disabled="busy" @click="load('forwarding', true)"><RefreshCw :size="14" />{{ t('refresh') }}</Button></div>
-            <div v-if="!forwardingItems.length && !forwardingLoaded" class="empty-state" role="status"><LoaderCircle class="animate-spin" :size="18" /><p>{{ t('checking') }}</p></div>
-            <div v-else-if="forwardingError" class="empty-state" role="alert"><p>{{ forwardingError }}</p><Button variant="ghost" size="sm" @click="load('forwarding', true)">{{ t('retry') }}</Button></div>
-            <template v-else-if="forwardingItems.length"><div v-for="(item, index) in forwardingItems" :key="index" class="plain-row">{{ item }}</div></template>
-            <div v-else class="empty-state"><p>{{ t('noForwarding') }}</p></div>
           </section>
         </template>
 

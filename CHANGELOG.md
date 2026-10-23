@@ -1,5 +1,11 @@
 # Changelog
 
+## v1.4.10 — NetBird v0.81.3
+
+- Removed the WebUI forwarding-rules view: NetBird dropped the `forwarding` CLI command in v0.81.0 together with management-side ingress ports, so the view always failed with `unknown command "forwarding"`.
+- The `webui forwarding` service action now returns an explicit "no longer available in NetBird v0.81.0+" error instead of passing the raw CLI failure through, so stale cached WebUI pages show a clear message.
+- The Networks view now shows a loading state while retrying after a failed load, matching the removed forwarding view's behavior.
+
 ## v1.4.9 — NetBird v0.81.3
 
 - Updated the bundled official NetBird client from `0.80.0` to `0.81.3` for `x86_64`, `arm64-v8a`, and `armv7` packages, each archive SHA-256 verified against the official release checksums before packaging.
