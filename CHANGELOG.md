@@ -2,6 +2,10 @@
 
 ## v1.4.10 — NetBird v0.81.3
 
+- Added confirmed connection controls to the WebUI overview: Reconnect/Disconnect (fast daemon-IPC `up`/`down` reusing persisted flags) and Start/Stop daemon. Daemon lifecycle runs detached (`nohup`) with the page polling status, so closing the WebUI cannot interrupt it; every control requires a confirmation dialog. New fixed `webui` service actions: `up`, `down`, `daemon-start`, `daemon-stop`.
+- Restyled WebUI notices as centered translucent-gray toasts with rounded corners.
+- Silenced the 5-second refresh cooldown on implicit loads (tab switches no longer pop an "updated recently" toast), deduplicated concurrent identical commands, and added a background Networks prefetch so the first Networks view renders instantly.
+
 - Fixed the watchdog restart path: `kill "$pid"2>/dev/null` was missing a space, so TERM/KILL targeted a nonexistent PID and a wedged daemon was never actually killed before the restart attempt.
 - Deduplicated the busybox-timeout wrappers in the status watcher (`nb_with_timeout`) and made `client_cmd` delegate to `webui_client`.
 

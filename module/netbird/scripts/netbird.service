@@ -544,6 +544,39 @@ webui_profile_select() {
   webui_client profile select "$profile_name"
 }
 
+# Connection control (tier 1): bare `netbird up`/`down` over daemon IPC.
+# Fast, no process management; flags from the original `up` persist in
+# config.json and are reused on reconnect. Requires a running daemon.
+webui_connection() {
+  conn_action="$1"
+  case "$conn_action" in
+    up|down) ;;
+    *) return 2 ;;
+  esac
+  if ! is_running; then
+    echo "daemon is not running" >&2
+    return 1
+  fi
+  webui_client "$conn_action"
+  conn_rc="$?"
+  update_module_status
+  return "$conn_rc"
+}
+
+# Daemon lifecycle (tier 2): fire-and-forget. start/stop take several
+# seconds (process waits, route/firewall cleanup) and the WebUI's WebView
+# may kill long-running shells when it closes, so detach the run and let
+# the page poll `webui status` for the outcome.
+webui_daemon_control() {
+  daemon_action="$1"
+  case "$daemon_action" in
+    start|stop) ;;
+    *) return 2 ;;
+  esac
+  nohup "$NB_SCRIPTS_DIR/netbird.service" "$daemon_action" >/dev/null 2>&1 &
+  printf '{"action":"%s","accepted":true}\n' "$daemon_action"
+}
+
 up_cmd() {
   # Opt-in flags (see settings.sh): NB_DISABLE_IPV6=true / NB_DISABLE_FIREWALL=true.
   # Appended before "$@" so an explicit flag on the command line still wins.
@@ -564,7 +597,7 @@ up_cmd() {
 usage() {
   echo "usage: netbird.service {start|stop|restart|status|up|down|login|log|refresh|route|peers|version|webui}"
   echo "  log follows the client log; use log --once for the latest 200 lines."
-  echo "  webui actions: status health version networks networks-select networks-append networks-deselect state profile-list profile-select"
+  echo "  webui actions: status health version networks networks-select networks-append networks-deselect up down daemon-start daemon-stop state profile-list profile-select"
   echo "  up always adds --disable-dns before your extra flags."
   echo "  peers shows per-peer connection type (P2P/Relayed), latency and traffic."
   echo "  Set NB_DISABLE_IPV6=true and/or NB_DISABLE_FIREWALL=true to append those on up."
@@ -692,6 +725,22 @@ case "${1:-}" in
         # error so stale WebUI caches get a clear message, not a stack trace.
         echo "Forwarding rules are no longer available in NetBird v0.81.0+." >&2
         exit 2
+        ;;
+      up)
+        webui_connection up
+        exit "$?"
+        ;;
+      down)
+        webui_connection down
+        exit "$?"
+        ;;
+      daemon-start)
+        webui_daemon_control start
+        exit "$?"
+        ;;
+      daemon-stop)
+        webui_daemon_control stop
+        exit "$?"
         ;;
       state)
         webui_client state list

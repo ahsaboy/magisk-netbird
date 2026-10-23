@@ -22,7 +22,8 @@ export function runRead(action) {
 export function runAction(action, args = []) {
   const allowed = new Set([
     "refresh", "route", "webui networks-append", "webui networks-select",
-    "webui networks-deselect", "webui health", "webui profile-select"
+    "webui networks-deselect", "webui health", "webui profile-select",
+    "webui up", "webui down", "webui daemon-start", "webui daemon-stop"
   ]);
   if (!allowed.has(action)) throw new Error("Unsupported WebUI action");
   return exec([SERVICE, action, ...args.map(quote)].join(" "));

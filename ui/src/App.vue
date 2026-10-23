@@ -2,8 +2,8 @@
 import { computed, onMounted, onUnmounted, ref, watch } from "vue";
 import {
   Activity, ArrowDownToLine, ArrowUpFromLine, Check, ChevronRight,
-  CircleAlert, Clock3, Globe2, Languages, ListFilter, LoaderCircle, Network, Palette, RefreshCw,
-  Route, ShieldCheck, Signal, Stethoscope, Users, Wifi, X
+  CircleAlert, Clock3, Globe2, Languages, ListFilter, LoaderCircle, Network, Palette, Power, RefreshCw,
+  Route, ShieldCheck, Signal, Stethoscope, Users, Wifi, WifiOff, X
 } from "@lucide/vue";
 import {
   DropdownMenuContent, DropdownMenuItemIndicator, DropdownMenuPortal,
@@ -189,6 +189,34 @@ async function refreshData() {
 function runRuntimeAction(action, message) {
   return confirmAction(message, async () => { throwOnError(await runAction(action)); await load("status", true); tell(t("operationDone")); });
 }
+// Daemon lifecycle polls: start/stop run detached server-side (nohup) because
+// the WebView may kill long shells; watch the status banner until it flips.
+const DAEMON_POLL_INTERVAL_MS = 2000;
+const DAEMON_POLL_MAX_TRIES = 15;
+async function waitForDaemon(running) {
+  for (let attempt = 0; attempt < DAEMON_POLL_MAX_TRIES; attempt++) {
+    await new Promise((resolve) => window.setTimeout(resolve, DAEMON_POLL_INTERVAL_MS));
+    await load("status", true);
+    if (running === (model.value.daemon === "running")) return true;
+  }
+  return false;
+}
+function connectionAction(action, message) {
+  return confirmAction(message, async () => {
+    throwOnError(await runAction(action));
+    await load("status", true);
+    tell(t("operationDone"));
+  });
+}
+function daemonControl(action) {
+  const starting = action === "webui daemon-start";
+  return confirmAction(t(starting ? "confirmDaemonStart" : "confirmDaemonStop"), async () => {
+    throwOnError(await runAction(action));
+    tell(t(starting ? "daemonStarting" : "daemonStopping"));
+    if (await waitForDaemon(starting)) tell(t(starting ? "daemonStarted" : "daemonStopped"));
+    else tell(t("daemonTimeout"), "fail");
+  });
+}
 function changeNetwork(mode, id) {
   const action = mode === "select" ? "webui networks-select" : mode === "append" ? "webui networks-append" : "webui networks-deselect";
   const message = mode !== "deselect" ? "" : id === "all" ? t("confirmDisableAll") : `${t("confirmDisableNetwork")} ${id}?`;
@@ -335,6 +363,17 @@ onUnmounted(() => window.clearTimeout(networksPrefetchTimer));
               <div class="detail-row"><span>{{ t('interface') }}</span><strong>{{ model.interfaceType }}</strong></div>
               <div class="detail-row"><span>{{ t('port') }}</span><strong>{{ model.port }}</strong></div>
               <div class="detail-row"><span>{{ t('version') }}</span><strong>{{ model.version }}</strong></div>
+            </div>
+          </section>
+          <section class="section-card">
+            <div class="section-heading"><div><span class="section-kicker">POWER</span><h2>{{ t('powerTitle') }}</h2></div><span class="status-indicator" :class="model.daemon"></span></div>
+            <div v-if="model.daemon === 'running'" class="action-grid">
+              <Button variant="default" class="justify-start" :disabled="busy" @click="connectionAction('webui up', t('confirmUp'))"><RefreshCw :size="16" />{{ t('btnUp') }}</Button>
+              <Button variant="outline" class="justify-start" :disabled="busy" @click="connectionAction('webui down', t('confirmDown'))"><WifiOff :size="16" />{{ t('btnDown') }}</Button>
+              <Button variant="outline" class="justify-start col-span-2" :disabled="busy" @click="daemonControl('webui daemon-stop')"><Power :size="16" />{{ t('btnDaemonStop') }}</Button>
+            </div>
+            <div v-else class="action-grid">
+              <Button variant="default" class="justify-start col-span-2" :disabled="busy" @click="daemonControl('webui daemon-start')"><Power :size="16" />{{ t('btnDaemonStart') }}</Button>
             </div>
           </section>
           <section class="section-card">

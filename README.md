@@ -103,9 +103,14 @@ fixed `networks select`/`deselect` actions; selecting one route appends to the c
 selection. A `0.0.0.0/0` or `::/0` entry is an exit route supplied by the management
 service, while the exit peer itself is not selected by this module.
 
-The WebUI does not accept setup keys or arbitrary shell commands. It does not start,
-stop, or restart the daemon; those lifecycle operations are handled by the module
-ACTION or boot service. It keeps raw log output out of the interface and focuses on
+The WebUI does not accept setup keys or arbitrary shell commands. The
+overview page offers confirmed connection controls: Reconnect and Disconnect
+(fast daemon-IPC `up`/`down` that reuse the flags persisted in config.json),
+plus Start daemon and Stop daemon. Daemon lifecycle runs detached server-side
+and the page polls status until the state flips, so closing the WebUI cannot
+interrupt a stop/start midway; every control requires a confirmation dialog.
+The module ACTION button remains the lifecycle entry point for managers
+without a WebUI. It keeps raw log output out of the interface and focuses on
 parsed status, peer, route, health, profile, and state information. The top-right language selector supports Chinese and English,
 follows the system language on first launch, and persists the user's choice. Switching
 between Peers and Networks changes the view immediately; data refreshes silently with a

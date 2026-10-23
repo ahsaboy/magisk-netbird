@@ -205,6 +205,57 @@ describe("mobile WebUI", () => {
     expect(commands.some((command) => command.endsWith("webui networks-deselect 'all'"))).toBe(true);
   });
 
+  it("disconnects the network from the power card after confirmation", async () => {
+    await mountApp();
+    await findButton("断开网络").trigger("click");
+    await flushPromises();
+    expect(commands.some((command) => command.endsWith("webui down"))).toBe(false);
+    const dialog = document.body.querySelector('[role="alertdialog"]');
+    expect(dialog).toBeTruthy();
+    expect(dialog.textContent).toContain("断开 NetBird 网络");
+    dialog.querySelector(".dialog-footer button:last-child").click();
+    await flushPromises();
+    expect(commands.some((command) => command.endsWith("webui down"))).toBe(true);
+  });
+
+  it("starts the daemon detached and polls status until it is running", async () => {
+    vi.useFakeTimers();
+    try {
+      let statusCalls = 0;
+      window.ksu.exec = (command, _options, callbackName) => {
+        commands.push(command);
+        if (command.endsWith("webui status")) {
+          statusCalls += 1;
+          // stopped on mount, flips to running on the first poll
+          const stdout = statusCalls > 1
+            ? JSON.stringify({ daemonStatus: "running", peers: [] })
+            : "";
+          window[callbackName](1, stdout, "");
+        } else if (command.endsWith("webui daemon-start")) {
+          window[callbackName](0, "{\"action\":\"start\",\"accepted\":true}", "");
+        } else {
+          window[callbackName](0, "", "");
+        }
+      };
+      await mountApp();
+      await findButton("启动守护进程").trigger("click");
+      await flushPromises();
+      expect(commands.some((command) => command.endsWith("webui daemon-start"))).toBe(false);
+      const dialog = document.body.querySelector('[role="alertdialog"]');
+      expect(dialog).toBeTruthy();
+      dialog.querySelector(".dialog-footer button:last-child").click();
+      await flushPromises();
+      expect(commands.some((command) => command.endsWith("webui daemon-start"))).toBe(true);
+      expect(wrapper.text()).toContain("正在启动守护进程");
+
+      await vi.advanceTimersByTimeAsync(2100);
+      await flushPromises();
+      expect(wrapper.text()).toContain("守护进程已启动");
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it("keeps the newest diagnostic response when requests finish out of order", async () => {
     const pending = [];
     window.ksu.exec = (command, _options, callbackName) => {

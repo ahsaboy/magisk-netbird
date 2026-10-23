@@ -36,7 +36,7 @@ test("the bridge exposes only fixed reads and approved actions", async () => {
   for (const [action] of reads) await runRead(action);
   for (const [, suffix] of reads) assert.ok(commands.some((command) => command.endsWith(suffix)));
 
-  const actions = ["refresh", "route", "webui networks-select", "webui networks-append", "webui networks-deselect", "webui health", "webui profile-select"];
+  const actions = ["refresh", "route", "webui networks-select", "webui networks-append", "webui networks-deselect", "webui health", "webui profile-select", "webui up", "webui down", "webui daemon-start", "webui daemon-stop"];
   for (const action of actions) await runAction(action, ["safe-value"]);
   for (const action of actions) assert.ok(commands.some((command) => command.includes(` ${action} 'safe-value'`)));
   for (const action of ["start", "stop", "restart", "webui start", "arbitrary shell"]) {
