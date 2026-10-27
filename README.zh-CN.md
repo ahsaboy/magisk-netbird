@@ -15,7 +15,7 @@
 <p align="center"><b><a href="README.md">English</a> · <a href="README.zh-CN.md">中文</a></b></p>
 
 NetBird CLI 常驻进程的精简 Magisk 模块封装。为三种架构打包官方 NetBird
-二进制（当前 v0.81.3）。
+二进制（当前 v0.81.4）。
 
 使用 `netbird.service up` 加入网络时，默认禁用 DNS 管理。
 

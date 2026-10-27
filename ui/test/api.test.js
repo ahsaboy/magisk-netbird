@@ -31,15 +31,16 @@ test("the bridge exposes only fixed reads and approved actions", async () => {
   const reads = [
     ["status", "webui status"], ["version", "webui version"],
     ["networks", "webui networks"],
-    ["state", "webui state"], ["profiles", "webui profile-list"]
+    ["state", "webui state"], ["profiles", "webui profile-list"],
+    ["automation", "webui automation-list"], ["automationLog", "webui automation-log"]
   ];
   for (const [action] of reads) await runRead(action);
   for (const [, suffix] of reads) assert.ok(commands.some((command) => command.endsWith(suffix)));
 
-  const actions = ["refresh", "route", "webui networks-select", "webui networks-append", "webui networks-deselect", "webui health", "webui profile-select", "webui up", "webui down", "webui daemon-start", "webui daemon-stop"];
+  const actions = ["refresh", "route", "webui networks-select", "webui networks-append", "webui networks-deselect", "webui health", "webui profile-select", "webui up", "webui down", "webui automation-save", "webui automation-delete"];
   for (const action of actions) await runAction(action, ["safe-value"]);
   for (const action of actions) assert.ok(commands.some((command) => command.includes(` ${action} 'safe-value'`)));
-  for (const action of ["start", "stop", "restart", "webui start", "arbitrary shell"]) {
+  for (const action of ["start", "stop", "restart", "webui start", "webui daemon-start", "webui daemon-stop", "arbitrary shell"]) {
     assert.throws(() => runAction(action), /Unsupported WebUI action/);
   }
 });

@@ -15,7 +15,7 @@
 <p align="center"><b><a href="README.md">English</a> · <a href="README.zh-CN.md">中文</a></b></p>
 
 Minimal Magisk module wrapper for the NetBird CLI daemon. Official NetBird
-binaries (currently v0.81.3) are bundled for three architectures.
+binaries (currently v0.81.4) are bundled for three architectures.
 
 DNS management is disabled by default when joining with `netbird.service up`.
 

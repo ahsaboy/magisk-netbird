@@ -1,23 +1,9 @@
 # Changelog
 
-## v1.4.10 — NetBird v0.81.3
-- Optimized the status watcher: one shared `status --json` call per cycle (was up to three netbird CLI spawns) with the module.prop description now parsed from JSON, and an idle mode while the client is disconnected — route re-checks and watchdog restarts are skipped and the cycle relaxes to `NB_IDLE_UPDATE_INTERVAL` (default 300s), so a downed client costs almost nothing. `webui up` starts a dead daemon on demand (detached, with auto-connect) and refreshes underlay routes immediately on reconnect.
-- Added confirmed connection controls to the WebUI overview: Reconnect/Disconnect (fast daemon-IPC `up`/`down` reusing persisted flags) and Start/Stop daemon. Daemon lifecycle runs detached (`nohup`) with the page polling status, so closing the WebUI cannot interrupt it; every control requires a confirmation dialog. New fixed `webui` service actions: `up`, `down`, `daemon-start`, `daemon-stop`.
-- Fixed the WebUI misreading a disconnected client as a stopped daemon: netbird's `daemonStatus` reports the connection state, so the page now tracks process state and connection state separately. After `webui down` the banner shows "disconnected" (with the stop/start controls intact) instead of switching to the start-daemon card; Connect/Disconnect buttons disable according to the current connection state and a needs-login state is surfaced.
-- Restyled WebUI notices as centered translucent-gray toasts with rounded corners.
-- Silenced the 5-second refresh cooldown on implicit loads (tab switches no longer pop an "updated recently" toast), deduplicated concurrent identical commands, and added a background Networks prefetch so the first Networks view renders instantly.
-- Tab switches now render the destination view with its loading placeholder first and defer the data read until the slide transition finishes (240ms), removing the animation stutter caused by firing the root-command bridge mid-transition; stale timers are ignored when switching again quickly.
-- Fixed the English "Refresh system routes"/"Refresh runtime rules" labels overflowing their two-column action buttons (shortened copy plus wrapping allowed in the action grid).
-- Implicit-load failures now surface in-page instead of as toasts: Networks shows an error placeholder with retry, diagnostics show the error in the output area, and status-bridge errors appear as a detail line inside the banner. Toasts are reserved for explicit switch/confirm actions.
-- When the daemon is stopped, views drop cached rows and show a "daemon is stopped" placeholder (Networks and Peers), and no doomed read commands are fired; the Networks cache is invalidated the moment status reports the daemon stopped, so stale rows never survive inside the 5-second cooldown.
-- A running-but-disconnected client no longer triggers the raw "failed to list network: not connected" error: Networks shows a friendly not-connected placeholder (or a connecting indicator), the route rows and bulk enable/disable actions are hidden outside the healthy state, and the doomed `networks list` call is skipped; remaining error messages drop the CLI's "Error: " prefix.
-- Fixed the watchdog restart path: `kill "$pid"2>/dev/null` was missing a space, so TERM/KILL targeted a nonexistent PID and a wedged daemon was never actually killed before the restart attempt.
-- Deduplicated the busybox-timeout wrappers in the status watcher (`nb_with_timeout`) and made `client_cmd` delegate to `webui_client`.
-- Removed the WebUI forwarding-rules view: NetBird dropped the `forwarding` CLI command in v0.81.0 together with management-side ingress ports, so the view always failed with `unknown command "forwarding"`.
-- The `webui forwarding` service action now returns an explicit "no longer available in NetBird v0.81.0+" error instead of passing the raw CLI failure through, so stale cached WebUI pages show a clear message.
-- The Networks view now shows a loading state while retrying after a failed load, matching the removed forwarding view's behavior.
-- Moved the WebUI bridge sources (`view-model.mjs`, `kernelsu.js`) out of `module/webroot/` into `ui/src/`, so the shipped webroot contains only build output; removed the duplicate `ui/src/lib/utils.ts` and two unused i18n strings.
-- Install-time extraction now skips the `update.json` / `updates/*.json` download manifests (managers fetch updates via the `updateJson` URL in `module.prop`, so the copies in `MODPATH` were dead weight).
+## v1.4.11 — NetBird v0.81.4
+- Added scheduled connect/disconnect rules with priorities and a persistent execution journal.
+- Kept the daemon watcher independent from connection state, with 30-second heartbeats and 30/300-second status probes.
+- Updated the official NetBird client to v0.81.4 and improved WebUI feedback and mobile behavior.
 
 ## v1.4.9 — NetBird v0.81.3
 

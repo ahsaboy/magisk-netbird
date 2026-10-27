@@ -68,13 +68,29 @@ function findButton(label, root = wrapper) {
 }
 
 describe("mobile WebUI", () => {
-  it("renders the local NetBird wordmark and four mobile destinations", async () => {
+  it("renders the local NetBird wordmark and five mobile destinations", async () => {
     await mountApp();
     expect(wrapper.get(".brand-mark svg").attributes("viewBox")).toBe("0 0 40 23");
     expect(wrapper.text()).toContain("运行中");
     expect(wrapper.text()).toContain("100.64.0.2");
-    expect(wrapper.findAll("[data-tab]")).toHaveLength(4);
+    expect(wrapper.findAll("[data-tab]")).toHaveLength(5);
     expect(wrapper.get('[data-tab="overview"]').attributes("aria-current")).toBe("page");
+  });
+
+  it("keeps the app shell height stable when the WebView resizes for the keyboard", async () => {
+    const originalHeight = window.innerHeight;
+    const heightDescriptor = Object.getOwnPropertyDescriptor(window, "innerHeight");
+    await mountApp();
+    const baselineHeight = document.documentElement.style.getPropertyValue("--app-shell-height");
+    expect(baselineHeight).toBe(`${originalHeight}px`);
+
+    Object.defineProperty(window, "innerHeight", { configurable: true, value: originalHeight - 280 });
+    window.dispatchEvent(new Event("resize"));
+    expect(document.documentElement.style.getPropertyValue("--app-shell-height")).toBe(baselineHeight);
+
+    if (heightDescriptor) Object.defineProperty(window, "innerHeight", heightDescriptor);
+    else delete window.innerHeight;
+    window.dispatchEvent(new Event("resize"));
   });
 
   it("switches destinations with navigation clicks and horizontal swipes", async () => {
@@ -197,6 +213,85 @@ describe("mobile WebUI", () => {
     expect(commands.some((command) => command.endsWith("webui networks-append 'network-a'"))).toBe(true);
   });
 
+  it("shows connection controls without daemon start/stop actions", async () => {
+    await mountApp();
+    expect(findButton("断开网络")).toBeTruthy();
+    expect(findButton("重连网络")).toBeTruthy();
+    expect(findButton("停止守护进程")).toBeUndefined();
+    expect(findButton("启动守护进程")).toBeUndefined();
+  });
+
+  it("loads automation rules and renders the history destination", async () => {
+    window.ksu.exec = (command, _options, callbackName) => {
+      commands.push(command);
+      const stdout = command.endsWith("automation-list")
+        ? "auto-ab12cd34\tNight route\tdisconnect\t1\t10\tall\tdaily:22:00"
+        : command.endsWith("automation-log") ? "v=1 ts=2026-10-26T20:30:00+08:00 rule=auto-ab12cd34 action=disconnect event=success key=auto-ab12cd34:2026-10-26T20:30" : JSON.stringify({ daemonStatus: "Connected", peers: [] });
+      window[callbackName](0, stdout, "");
+    };
+    await mountApp();
+    await openTab("automation");
+    expect(wrapper.text()).toContain("Night route");
+    expect(wrapper.text()).toContain("执行记录");
+    expect(commands.some((command) => command.endsWith("webui automation-list"))).toBe(true);
+    expect(commands.some((command) => command.endsWith("webui automation-log"))).toBe(true);
+  });
+
+  it("creates automation rules disabled without exposing a rule ID field", async () => {
+    await mountApp();
+    await openTab("automation");
+    const nameInput = wrapper.find('.automation-form input[aria-label="Rule name"]');
+    expect(nameInput.exists()).toBe(true);
+    await nameInput.setValue("Office schedule");
+    await wrapper.find(".automation-form").trigger("submit");
+    await flushPromises();
+    expect(commands.some((command) => command.endsWith("webui automation-save '' 'Office schedule' 'disconnect' '0' '10' 'all' 'daily:22:00'"))).toBe(true);
+    expect(wrapper.find('.automation-form input[aria-label="Rule ID"]').exists()).toBe(false);
+  });
+
+  it("saves repeated schedule conditions with the selected matching mode", async () => {
+    await mountApp();
+    await openTab("automation");
+    await wrapper.find('.automation-form input[aria-label="Rule name"]').setValue("Work hours");
+    await findButton("添加条件").trigger("click");
+    const conditionRows = wrapper.findAll(".automation-condition-row");
+    await conditionRows[1].find("select").setValue("weekly");
+    await conditionRows[1].find('select[aria-label="Weekday"]').setValue("5");
+    await conditionRows[1].find('input[aria-label="Scheduled time"]').setValue("06:30");
+    await wrapper.find('select[aria-label="Condition mode"]').setValue("any");
+    await wrapper.find(".automation-form").trigger("submit");
+    await flushPromises();
+    expect(commands.some((command) => command.endsWith("webui automation-save '' 'Work hours' 'disconnect' '0' '10' 'any' 'daily:22:00' 'weekly:5@06:30'"))).toBe(true);
+  });
+
+  it("shows a persistent progress toast while a confirmed action is pending", async () => {
+    let completeRefresh;
+    window.ksu.exec = (command, _options, callbackName) => {
+      commands.push(command);
+      if (command.endsWith("netbird.service refresh")) {
+        completeRefresh = () => window[callbackName](0, "", "");
+      } else if (command.endsWith("webui status")) {
+        window[callbackName](0, JSON.stringify({ daemonStatus: "running", peers: [] }), "");
+      } else {
+        window[callbackName](0, "", "");
+      }
+    };
+    await mountApp();
+    await findButton("刷新运行时规则").trigger("click");
+    document.body.querySelector(".dialog-footer button:last-child").click();
+    await flushPromises();
+
+    expect(wrapper.find(".notice-toast").text()).toContain("操作中");
+    expect(wrapper.find(".notice-spinner").exists()).toBe(true);
+    expect(wrapper.find(".notice-spinner").classes()).toContain("spinner-motion");
+    expect(findButton("刷新系统路由").element.disabled).toBe(true);
+
+    completeRefresh();
+    await flushPromises();
+    expect(wrapper.find(".notice-toast").text()).toContain("操作已完成");
+    expect(wrapper.find(".notice-spinner").exists()).toBe(false);
+  });
+
   it("keeps destructive network deselection behind confirmation", async () => {
     await mountApp();
     await openTab("networks");
@@ -219,10 +314,15 @@ describe("mobile WebUI", () => {
     expect(dialog.textContent).toContain("断开 NetBird 网络");
     dialog.querySelector(".dialog-footer button:last-child").click();
     await flushPromises();
+    expect(document.body.querySelector('[role="alertdialog"]')).toBeNull();
+    expect(wrapper.find(".notice-toast").text()).toContain("正在断开网络");
+    expect(commands.some((command) => command.endsWith("webui down"))).toBe(false);
+    await new Promise((resolve) => window.requestAnimationFrame(() => window.requestAnimationFrame(resolve)));
+    await flushPromises();
     expect(commands.some((command) => command.endsWith("webui down"))).toBe(true);
   });
 
-  it("keeps daemon controls when the client is disconnected (daemon alive)", async () => {
+  it("keeps daemon controls out of the WebUI after disconnecting", async () => {
     window.ksu.exec = (command, _options, callbackName) => {
       commands.push(command);
       const stdout = command.endsWith("webui status")
@@ -232,7 +332,7 @@ describe("mobile WebUI", () => {
     };
     await mountApp();
     expect(wrapper.text()).toContain("未连接");
-    expect(findButton("停止守护进程")).toBeTruthy();
+    expect(findButton("停止守护进程")).toBeUndefined();
     expect(findButton("启动守护进程")).toBeUndefined();
     expect(findButton("断开网络").element.disabled).toBe(true);
     expect(findButton("重连网络").element.disabled).toBe(false);
@@ -273,44 +373,6 @@ describe("mobile WebUI", () => {
     expect(wrapper.text()).toContain("守护进程已停止");
     expect(wrapper.text()).not.toContain("network-a");
     expect(commands.filter((command) => command.endsWith("webui networks")).length).toBe(networksReadsBeforeStop);
-  });
-
-  it("starts the daemon detached and polls status until it is running", async () => {
-    vi.useFakeTimers();
-    try {
-      let statusCalls = 0;
-      window.ksu.exec = (command, _options, callbackName) => {
-        commands.push(command);
-        if (command.endsWith("webui status")) {
-          statusCalls += 1;
-          // stopped on mount, flips to running on the first poll
-          const stdout = statusCalls > 1
-            ? JSON.stringify({ daemonStatus: "running", peers: [] })
-            : "";
-          window[callbackName](1, stdout, "");
-        } else if (command.endsWith("webui daemon-start")) {
-          window[callbackName](0, "{\"action\":\"start\",\"accepted\":true}", "");
-        } else {
-          window[callbackName](0, "", "");
-        }
-      };
-      await mountApp();
-      await findButton("启动守护进程").trigger("click");
-      await flushPromises();
-      expect(commands.some((command) => command.endsWith("webui daemon-start"))).toBe(false);
-      const dialog = document.body.querySelector('[role="alertdialog"]');
-      expect(dialog).toBeTruthy();
-      dialog.querySelector(".dialog-footer button:last-child").click();
-      await flushPromises();
-      expect(commands.some((command) => command.endsWith("webui daemon-start"))).toBe(true);
-      expect(wrapper.text()).toContain("正在启动守护进程");
-
-      await vi.advanceTimersByTimeAsync(2100);
-      await flushPromises();
-      expect(wrapper.text()).toContain("守护进程已启动");
-    } finally {
-      vi.useRealTimers();
-    }
   });
 
   it("keeps the newest diagnostic response when requests finish out of order", async () => {

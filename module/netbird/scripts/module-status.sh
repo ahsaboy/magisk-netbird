@@ -3,12 +3,14 @@
 DIR=$(dirname "$(realpath "$0")")
 . "$DIR/../settings.sh"
 
-prop_update_interval="${NB_PROP_UPDATE_INTERVAL:-60}"
-# Relaxed cycle while the client is intentionally disconnected (watchdog and
-# route re-checks are skipped there; only the status line refreshes).
-idle_update_interval="${NB_IDLE_UPDATE_INTERVAL:-300}"
+heartbeat_interval=30
+connected_probe_interval=30
+idle_probe_interval=300
 watch_pid_file="$NB_RUN_DIR/module-status.pid"
 default_description="NetBird CLI daemon for Magisk with DNS management disabled by default."
+NB_AUTOMATION_LIBRARY_ONLY=1
+. "$NB_SCRIPTS_DIR/automation.sh"
+unset NB_AUTOMATION_LIBRARY_ONLY
 
 # Print every existing module.prop that should receive the status line: the
 # active module dir, the staged upgrade dir, and the module.path hint. After
@@ -213,19 +215,21 @@ print_peers() {
 }
 
 # --- Watchdog -----------------------------------------------------------------
-# Probe daemon health once per watch cycle using the shared status blob; after
-# NB_WATCHDOG_FAILS consecutive failures kill and restart it (bounded by
-# NB_WATCHDOG_MAX_RESTARTS, budget reset after 5 healthy cycles). Only acts
-# when the last start/stop marked the daemon as desired-up and a login state
-# exists. The watch loop additionally skips this entirely while the client is
-# intentionally disconnected.
+# Check daemon process presence on every heartbeat. IPC health is counted only
+# when a status probe was actually due; an intentionally disconnected client
+# skips those probes between the longer idle intervals.
 watchdog_check() {
   wd_blob="${1:-}"
+  wd_probe="${2:-0}"
+  wd_running="${3:-0}"
   [ "$NB_WATCHDOG" = "off" ] && return 0
   [ -f "$NB_RUN_DIR/netbird.desired" ] || return 0
-  [ -f "$NB_STATE_DIR/state.json" ] || return 0
 
-  if daemon_running && [ -n "$wd_blob" ]; then
+  if [ "$wd_running" -eq 1 ] && [ "$wd_probe" -eq 0 ]; then
+    return 0
+  fi
+
+  if [ "$wd_running" -eq 1 ] && [ -n "$wd_blob" ]; then
     wd_fails=0
     wd_healthy=$((wd_healthy + 1))
     if [ "$wd_healthy" -ge 5 ] && [ "$wd_restarts" -gt 0 ]; then
@@ -490,36 +494,56 @@ case "${1:-update}" in
     wd_gave_up=0
     wd_restarts="$(cat "$NB_RUN_DIR/watchdog.count" 2>/dev/null || true)"
     case "$wd_restarts" in '' | *[!0-9]*) wd_restarts=0 ;; esac
+    seconds_to_status=0
+    connection_state=other
+    cached_status_blob=""
     while true; do
-      # ONE netbird invocation per cycle, shared by the watchdog and the
-      # module.prop description refresh. An empty blob means the daemon is
-      # not answering (probe failure).
-      status_blob="$(status_json)"
-      cycle_interval="$prop_update_interval"
-      cycle_idle=0
-
-      if daemon_running; then
-        case "$(watch_connection_state "$status_blob")" in
-          idle)
-            # Client intentionally disconnected: no tunnel traffic to keep
-            # alive, so skip route re-checks and watchdog restarts and relax
-            # the cycle. module.prop still refreshes with the idle state.
-            cycle_idle=1
-            cycle_interval="$idle_update_interval"
-            ;;
-          *)
-            # Re-check the Android route rule regularly so a Wi-Fi/cellular
-            # switch does not leave the daemon with a stale table lookup.
-            if [ -x "$NB_SCRIPTS_DIR/netbird.service" ]; then
-              "$NB_SCRIPTS_DIR/netbird.service" route >/dev/null 2>&1 || true
-            fi
-            ;;
-        esac
+      daemon_present=0
+      status_probe=0
+      status_blob=""
+      if [ -f "$NB_RUN_DIR/status.probe" ]; then
+        rm -f "$NB_RUN_DIR/status.probe"
+        seconds_to_status=0
       fi
 
-      [ "$cycle_idle" -eq 0 ] && watchdog_check "$status_blob"
+      # Process presence is checked on every 30-second heartbeat. Status IPC
+      # is independently scheduled: 30 seconds while connected/unknown and
+      # 300 seconds after a confirmed intentional disconnect.
+      if daemon_running; then
+        daemon_present=1
+        if [ "$seconds_to_status" -gt 0 ]; then
+          seconds_to_status=$((seconds_to_status - heartbeat_interval))
+        fi
+        if [ "$seconds_to_status" -le 0 ]; then
+          status_blob="$(status_json)"
+          cached_status_blob="$status_blob"
+          status_probe=1
+          connection_state="$(watch_connection_state "$status_blob")"
+          if [ "$connection_state" = "idle" ]; then
+            seconds_to_status="$idle_probe_interval"
+          else
+            seconds_to_status="$connected_probe_interval"
+          fi
+        else
+          status_blob="$cached_status_blob"
+        fi
+      else
+        seconds_to_status=0
+        connection_state=other
+        cached_status_blob=""
+      fi
+
+      # Keep underlay routes fresh while a tunnel may be active; a confirmed
+      # disconnect has no route work to perform.
+      if [ "$daemon_present" -eq 1 ] && [ "$connection_state" != "idle" ] &&
+        [ -x "$NB_SCRIPTS_DIR/netbird.service" ]; then
+        "$NB_SCRIPTS_DIR/netbird.service" route >/dev/null 2>&1 || true
+      fi
+
+      watchdog_check "$status_blob" "$status_probe" "$daemon_present"
+      evaluate_rules || true
       write_module_prop "$status_blob" >/dev/null 2>&1 || true
-      sleep "$cycle_interval"
+      sleep "$heartbeat_interval"
     done
     ;;
   stop)

@@ -3,7 +3,7 @@
 # failing command in a sourcing script (e.g. a non-zero `netbird up`) would
 # abort the whole script before it can capture the return code.
 
-NB_DIR="/data/adb/netbird"
+NB_DIR="${NB_DIR:-/data/adb/netbird}"
 NB_BIN_DIR="$NB_DIR/bin"
 NB_SCRIPTS_DIR="$NB_DIR/scripts"
 NB_RUN_DIR="$NB_DIR/run"
@@ -106,11 +106,10 @@ fi
 [ -n "${NB_FORCE_USERSPACE_FIREWALL+x}" ] && export NB_FORCE_USERSPACE_FIREWALL
 [ -n "${NB_WG_KERNEL_DISABLED+x}" ] && export NB_WG_KERNEL_DISABLED
 
-# Watchdog (module-status.sh watch loop): probe daemon health once per cycle
-# and restart it after NB_WATCHDOG_FAILS consecutive failures. The restart
-# budget (NB_WATCHDOG_MAX_RESTARTS) resets after5 healthy cycles. Set
-# NB_WATCHDOG=off in .env to disable. Not exported: only module scripts use
-# these, and every script re-reads .env via this file.
+# Watchdog checks daemon process presence each heartbeat and uses scheduled IPC
+# health probes (30s connected, 300s intentionally disconnected). Restart after
+# NB_WATCHDOG_FAILS consecutive failures; the budget resets after 5 healthy probes.
+# NB_WATCHDOG=off disables recovery. Not exported: module scripts read .env.
 NB_WATCHDOG="${NB_WATCHDOG:-on}"
 NB_WATCHDOG_FAILS="${NB_WATCHDOG_FAILS:-3}"
 NB_WATCHDOG_MAX_RESTARTS="${NB_WATCHDOG_MAX_RESTARTS:-10}"

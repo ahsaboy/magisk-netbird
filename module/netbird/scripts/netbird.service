@@ -6,6 +6,7 @@ DIR=$(dirname "$(realpath "$0")")
 pid_file="$NB_RUN_DIR/netbird.pid"
 cert_trust_script="$NB_SCRIPTS_DIR/cert-trust.sh"
 module_status_script="$NB_SCRIPTS_DIR/module-status.sh"
+automation_script="$NB_SCRIPTS_DIR/automation.sh"
 overlay_rule_pref="90"
 root_route_rule_pref="100"
 
@@ -349,15 +350,12 @@ start_module_status() {
   "$module_status_script" start >/dev/null 2>&1 || true
 }
 
-stop_module_status() {
-  [ -x "$module_status_script" ] || return 0
-  "$module_status_script" stop >/dev/null 2>&1
-}
-
 start_service() {
   # Desired-state marker for the watchdog: set whenever the daemon should be
   # running, cleared by stop_service. The watchdog only restarts when set.
   echo 1 > "$NB_RUN_DIR/netbird.desired"
+  start_module_status
+  request_status_probe
   log Info "Starting NetBird daemon."
   if is_running; then
     log Info "NetBird daemon is already running."
@@ -368,13 +366,11 @@ start_service() {
   fi
   if ! command -v netbird >/dev/null 2>&1; then
     log Error "netbird binary not found."
-    rm -f "$NB_RUN_DIR/netbird.desired"
     update_module_status
     return 1
   fi
   if ! ensure_android_route; then
     log Error "Failed to prepare Android routing for NetBird."
-    rm -f "$NB_RUN_DIR/netbird.desired"
     update_module_status
     return 1
   fi
@@ -404,14 +400,15 @@ start_service() {
 }
 
 stop_service() {
-  # Clear desired state first so the watchdog never races a manual stop.
+  # An explicit root stop clears daemon desired state but leaves the module
+  # watcher alive. The watcher has its own module lifecycle and must not be
+  # coupled to connection or daemon state.
   rm -f "$NB_RUN_DIR/netbird.desired"
   log Info "Stopping NetBird daemon."
   stop_rc=0
   if ! is_running; then
     cleanup_runtime || stop_rc=1
     log Info "NetBird daemon is not running."
-    stop_module_status || stop_rc=1
     return "$stop_rc"
   fi
   for pid in $(busybox pgrep -f "$NB_DAEMON_CMD" 2>/dev/null); do
@@ -430,7 +427,6 @@ stop_service() {
   fi
   cleanup_runtime || stop_rc=1
   rm -f "$pid_file"
-  stop_module_status || stop_rc=1
   return "$stop_rc"
 }
 
@@ -517,6 +513,10 @@ webui_health() {
   return "$health_rc"
 }
 
+request_status_probe() {
+  : > "$NB_RUN_DIR/status.probe"
+}
+
 webui_network_change() {
   network_action="$1"
   shift
@@ -538,6 +538,18 @@ webui_network_change() {
   return "$network_rc"
 }
 
+webui_automation() {
+  automation_action="${1:-}"
+  shift || true
+  case "$automation_action" in
+    list) "$automation_script" list ;;
+    save) "$automation_script" save "$@" ;;
+    delete) "$automation_script" delete "$@" ;;
+    log) "$automation_script" log ;;
+    *) echo "invalid automation action" >&2; return 2 ;;
+  esac
+}
+
 webui_profile_select() {
   profile_name="${1:-}"
   webui_value "$profile_name" || { echo "invalid profile name" >&2; return 2; }
@@ -546,10 +558,8 @@ webui_profile_select() {
 
 # Connection control (tier 1): bare `netbird up`/`down` over daemon IPC.
 # Fast, no process management; flags from the original `up` persist in
-# config.json and are reused on reconnect. Requires a running daemon —
-# except `up`, which starts a dead daemon detached and lets auto-connect
-# restore the tunnel (covers "daemon killed while disconnected"; the idle
-# watcher deliberately does not revive it).
+# config.json and are reused on reconnect. A disconnected daemon stays under
+# the module watcher; explicit root start can restore it if maintenance stopped it.
 webui_connection() {
   conn_action="$1"
   case "$conn_action" in
@@ -567,12 +577,14 @@ webui_connection() {
   fi
   webui_client "$conn_action"
   conn_rc="$?"
+  request_status_probe
   if [ "$conn_action" = "up" ] && [ -x "$NB_SCRIPTS_DIR/netbird.service" ]; then
     # The idle watcher skipped route re-checks while disconnected; restore
     # the underlay rules immediately instead of waiting for the next cycle.
     "$NB_SCRIPTS_DIR/netbird.service" route >/dev/null 2>&1 || true
   fi
   update_module_status
+  request_status_probe
   return "$conn_rc"
 }
 
@@ -610,7 +622,8 @@ up_cmd() {
 usage() {
   echo "usage: netbird.service {start|stop|restart|status|up|down|login|log|refresh|route|peers|version|webui}"
   echo "  log follows the client log; use log --once for the latest 200 lines."
-  echo "  webui actions: status health version networks networks-select networks-append networks-deselect up down daemon-start daemon-stop state profile-list profile-select"
+  echo "  webui actions: status health version networks networks-select networks-append networks-deselect up down daemon-start daemon-stop automation-list automation-save automation-delete automation-log state profile-list profile-select"
+  echo "  automation-save arguments: id-or-empty name action enabled priority mode condition... (1-8 conditions)"
   echo "  up always adds --disable-dns before your extra flags."
   echo "  peers shows per-peer connection type (P2P/Relayed), latency and traffic."
   echo "  Set NB_DISABLE_IPV6=true and/or NB_DISABLE_FIREWALL=true to append those on up."
@@ -647,6 +660,7 @@ case "${1:-}" in
     start_service
     up_cmd "$@"
     rc="$?"
+    request_status_probe
     update_module_status
     exit "$rc"
     ;;
@@ -654,6 +668,7 @@ case "${1:-}" in
     shift
     client_cmd down "$@"
     rc="$?"
+    request_status_probe
     update_module_status
     exit "$rc"
     ;;
@@ -755,6 +770,24 @@ case "${1:-}" in
         webui_daemon_control stop
         exit "$?"
         ;;
+      automation-list)
+        webui_automation list
+        exit "$?"
+        ;;
+      automation-save)
+        shift
+        webui_automation save "$@"
+        exit "$?"
+        ;;
+      automation-delete)
+        shift
+        webui_automation delete "$@"
+        exit "$?"
+        ;;
+      automation-log)
+        webui_automation log
+        exit "$?"
+        ;;
       state)
         webui_client state list
         exit "$?"
@@ -769,7 +802,7 @@ case "${1:-}" in
         exit "$?"
         ;;
       *)
-        echo "usage: netbird.service webui {status|health|version|networks|networks-select|networks-append|networks-deselect|forwarding|state|profile-list|profile-select}" >&2
+        echo "usage: netbird.service webui {status|health|version|networks|networks-select|networks-append|networks-deselect|forwarding|up|down|automation-list|automation-save|automation-delete|automation-log|state|profile-list|profile-select}" >&2
         exit 2
         ;;
     esac
