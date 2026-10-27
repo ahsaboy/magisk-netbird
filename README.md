@@ -33,19 +33,16 @@ the module's update information. The ACTION button needs Magisk v28+.
 
 ## Usage
 
-Before reboot:
-
-```sh
-su -c '/data/adb/netbird/scripts/netbird.service up --setup-key <KEY> --management-url <URL>'
-su -c '/data/adb/netbird/scripts/netbird.service status'
-```
-
-After reboot:
+Connect and check status:
 
 ```sh
 su -c 'netbird.service up --setup-key <KEY> --management-url <URL>'
 su -c 'netbird.service status'
-su -c 'netbird.service log'
+su -c 'netbird.service down'   # disconnect; daemon stays running
+su -c 'netbird.service stop'   # stop the daemon
+su -c 'netbird.service start'
+su -c 'netbird.service peers'
+su -c 'netbird.service log --once'
 ```
 
 On KernelSU without a mount metamodule installed, the module's `system/bin`
@@ -64,58 +61,17 @@ su -c 'echo -n <KEY> > /data/adb/netbird/setup.key && chmod 600 /data/adb/netbir
 su -c 'netbird.service up --setup-key-file /data/adb/netbird/setup.key --management-url <URL>'
 ```
 
-Inspect every peer with connection details (P2P direct vs relayed, latency,
-traffic, last handshake):
+Inspect peers with `netbird.service peers` for connection type, latency, traffic,
+and last-handshake details.
 
-```sh
-su -c 'netbird.service peers'
-```
+The module ACTION button is a shortcut for manager users. KernelSU users can open
+the WebUI for status, routes, health, profiles, and scheduled automation controls.
+`down` disconnects without stopping the daemon or watcher; use `stop` to stop
+the daemon.
 
-In the Magisk app (v28+), or in a KernelSU/APatch manager, the module's
-**ACTION** button runs `action.sh` without arguments. It prompts for a volume key:
-Volume Up starts NetBird and Volume Down stops it. `action.sh` also accepts an
-explicit action for root-shell callers:
-
-```sh
-su -c '<module-dir>/action.sh status'
-su -c '<module-dir>/action.sh refresh'
-su -c '<module-dir>/action.sh start'
-su -c '<module-dir>/action.sh stop'
-su -c '<module-dir>/action.sh restart'
-su -c '<module-dir>/action.sh peers'
-su -c '<module-dir>/action.sh log'
-su -c '<module-dir>/action.sh version'
-```
-
-Supported actions are `status`, `refresh`, `start`, `stop`, `restart`, `route`,
-`peers`, `log`, `version`, and `help`. Use the explicit `status` action when a
-non-interactive status refresh is needed. The `log` action prints the latest 200 lines
-and exits so that an ACTION page does not wait forever; use
-`su -c 'netbird.service log'` for continuous log following. Seeing
-`daemon: stopped` after `stop` is expected and does not indicate a failed stop. The
-same actions can also be invoked directly, for example `su -c 'netbird.service peers'`.
-
-KernelSU users can open the module's **WebUI** for a mobile-first control panel.
-The page parses status JSON into connection cards and peer rows, and provides separate
-views for Peers, Networks/Routes, health checks, versions, stored
-state items, and profiles. Network selection uses
-fixed `networks select`/`deselect` actions; selecting one route appends to the current
-selection. A `0.0.0.0/0` or `::/0` entry is an exit route supplied by the management
-service, while the exit peer itself is not selected by this module.
-
-The WebUI does not accept setup keys or arbitrary shell commands. The
-overview page offers confirmed connection controls: Reconnect and Disconnect
-(fast daemon-IPC `up`/`down` that reuse the flags persisted in config.json),
-plus Start daemon and Stop daemon. Daemon lifecycle runs detached server-side
-and the page polls status until the state flips, so closing the WebUI cannot
-interrupt a stop/start midway; every control requires a confirmation dialog.
-The module ACTION button remains the lifecycle entry point for managers
-without a WebUI. It keeps raw log output out of the interface and focuses on
-parsed status, peer, route, health, profile, and state information. The top-right language selector supports Chinese and English,
-follows the system language on first launch, and persists the user's choice. Switching
-between Peers and Networks changes the view immediately; data refreshes silently with a
-five-second cooldown to avoid repeated root commands. The manager's ACTION button
-remains the short, no-argument refresh-and-status entry point.
+<p align="center">
+  <img src="docs/kernelsu-webui.jpg" alt="Magisk NetBird KernelSU WebUI" width="360">
+</p>
 
 ## Configuration
 
@@ -137,10 +93,8 @@ variables (environment outranks CLI flags in NetBird):
 | `NB_LOG_LEVEL` | `info` | NetBird log level. |
 | `NB_LOG_MAX_SIZE_MB` | `5` | NetBird's own log-rotation cap for `client.log` in MiB (upstream default 15). |
 | `NB_WATCHDOG` | `on` | Watchdog: auto-restart the daemon when its status stops responding; `off` disables. |
-| `NB_WATCHDOG_FAILS` | `3` | Failed status probes (one per refresh cycle) before a restart. |
-| `NB_WATCHDOG_MAX_RESTARTS` | `10` | Restart budget; reset after 5 healthy cycles. |
-| `NB_PROP_UPDATE_INTERVAL` | `60` | Watch cycle in seconds while connected: route re-checks, watchdog probes, and status refresh (one `status --json` call per cycle). |
-| `NB_IDLE_UPDATE_INTERVAL` | `300` | Relaxed cycle while the client is disconnected: no route re-checks or watchdog restarts, only the status line refreshes. `webui up` starts a dead daemon and restores underlay routes on reconnect. |
+| `NB_WATCHDOG_FAILS` | `3` | Consecutive failed status probes before a restart (30s apart while connected, 300s while disconnected). |
+| `NB_WATCHDOG_MAX_RESTARTS` | `10` | Restart budget; reset after 5 healthy probes. |
 
 All of the variables above (and any other variable the official client
 supports) can be persisted in `/data/adb/netbird/.env` as `KEY=VALUE` lines
@@ -160,19 +114,11 @@ Flags added by `up` persist in `config.json` and are applied on (re)connect,
 so after changing them run `netbird.service down` followed by
 `netbird.service up` (or `netbird.service restart`).
 
-The status watcher re-applies both IPv4 and IPv6 Android root underlay rules every refresh cycle
-(default 60s), so Wi-Fi/cellular/SIM switches no longer require a manual restart.
-The same watcher probes daemon health each cycle — with a single shared
-`status --json` call — and restarts the daemon after 3 consecutive failed
-probes (watchdog: budget 10 restarts, reset after 5 healthy cycles - tunable
-via `NB_WATCHDOG*`, disable with `NB_WATCHDOG=off`). While the client is
-intentionally disconnected (`netbird down`), the watcher stands down: route
-re-checks and watchdog restarts are skipped and the cycle relaxes to
-`NB_IDLE_UPDATE_INTERVAL` (default 300s), so an idle daemon costs almost
-nothing; `webui up` starts a dead daemon on demand and refreshes the underlay
-routes on reconnect.
-`netbird.service stop` (and uninstall) removes all ip rules and iptables rules
-the module added.
+The watcher checks daemon process state every 30 seconds. It probes NetBird status
+every 30 seconds while connected and every 300 seconds after an intentional disconnect;
+the watchdog restarts an unresponsive daemon after the configured number of failed probes.
+`netbird.service down` only disconnects. `netbird.service stop` stops the daemon, while
+`start` or `up` starts it again. Uninstall removes the module's network rules.
 
 ## Dynamic status
 

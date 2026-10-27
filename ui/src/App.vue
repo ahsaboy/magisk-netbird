@@ -92,11 +92,17 @@ const automationLoading = ref(false);
 const automationFilterRule = ref("all");
 const automationFilterAction = ref("all");
 const automationFilterEvent = ref("all");
+const automationLogPageSize = 10;
+const automationLogLimit = ref(automationLogPageSize);
 const visibleAutomationLogs = computed(() => automationLogs.value.filter((entry) =>
   (automationFilterRule.value === "all" || entry.rule === automationFilterRule.value) &&
   (automationFilterAction.value === "all" || entry.action === automationFilterAction.value) &&
   (automationFilterEvent.value === "all" || entry.event === automationFilterEvent.value)
 ));
+const displayedAutomationLogs = computed(() => visibleAutomationLogs.value.slice(0, automationLogLimit.value));
+watch([automationFilterRule, automationFilterAction, automationFilterEvent], () => {
+  automationLogLimit.value = automationLogPageSize;
+});
 const confirmOpen = ref(false);
 const confirmMessage = ref("");
 const pendingAction = ref(null);
@@ -259,6 +265,7 @@ async function loadAutomation() {
     throwOnError(logResult);
     automationRules.value = parseAutomationRules(rulesResult.stdout);
     automationLogs.value = parseAutomationLog(logResult.stdout).reverse();
+    automationLogLimit.value = automationLogPageSize;
   } catch (error) { automationError.value = error.message; }
   finally { automationLoading.value = false; }
 }
@@ -599,7 +606,7 @@ onUnmounted(() => {
             <div v-else-if="!model.peers.length" class="empty-state"><div class="empty-icon"><Users :size="19" /></div><p>{{ t('noPeers') }}</p></div>
             <div v-else-if="!peerItems.length" class="empty-state"><div class="empty-icon"><ListFilter :size="18" /></div><p>{{ t('filterNoMatches') }}</p></div>
             <article v-for="(peer, index) in peerItems" :key="firstValue(peer, ['fqdn', 'name']) + index" class="peer-row">
-              <div class="peer-main"><div class="peer-avatar">{{ String(firstValue(peer, ['fqdn', 'name'])).slice(0, 1).toUpperCase() }}</div><div class="peer-ident"><strong>{{ firstValue(peer, ['fqdn', 'name']) }}</strong><span>{{ firstValue(peer, ['netbirdIp', 'netbirdIP']) }}</span></div><Badge variant="outline" :class="String(firstValue(peer, ['status', 'state'])).toLowerCase().includes('connected') ? 'border-primary/30 bg-secondary text-primary' : ''">{{ connectionText(firstValue(peer, ['status', 'state'])) }}</Badge></div>
+              <div class="peer-main"><div class="peer-ident"><strong>{{ firstValue(peer, ['fqdn', 'name']) }}</strong><span>{{ firstValue(peer, ['netbirdIp', 'netbirdIP']) }}</span></div><Badge variant="outline" :class="String(firstValue(peer, ['status', 'state'])).toLowerCase().includes('connected') ? 'border-primary/30 bg-secondary text-primary' : ''">{{ connectionText(firstValue(peer, ['status', 'state'])) }}</Badge></div>
               <div class="peer-stats">
                 <div class="peer-stat"><span>{{ t('connectionType') }}</span><strong>{{ firstValue(peer, ['connectionType', 'type']) }}</strong></div>
                 <div class="peer-stat"><span>{{ t('latency') }}</span><strong>{{ firstValue(peer, ['latency', 'latencyMs']) }}</strong></div>
@@ -665,8 +672,9 @@ onUnmounted(() => {
               <select v-model="automationFilterAction" :aria-label="t('filterAction')"><option value="all">{{ t('allActions') }}</option><option value="connect">{{ t('btnUp') }}</option><option value="disconnect">{{ t('btnDown') }}</option></select>
               <select v-model="automationFilterEvent" :aria-label="t('filterResult')"><option value="all">{{ t('allResults') }}</option><option value="success">{{ t('eventSuccess') }}</option><option value="skipped">{{ t('eventSkipped') }}</option><option value="failed">{{ t('eventFailed') }}</option><option value="conflict">{{ t('eventConflict') }}</option><option value="started">{{ t('eventStarted') }}</option></select>
             </div>
-            <article v-for="(entry, index) in visibleAutomationLogs" :key="`${entry.key}-${index}`" class="automation-log-row"><strong>{{ t(`event${entry.event?.[0]?.toUpperCase()}${entry.event?.slice(1)}`) }}</strong><span>{{ automationRuleName(entry.rule) }} · {{ entry.action }} · {{ entry.key?.replace(/^.*:/, '') }}</span><small>{{ entry.ts }}</small></article>
+            <article v-for="(entry, index) in displayedAutomationLogs" :key="`${entry.key}-${index}`" class="automation-log-row"><strong>{{ t(`event${entry.event?.[0]?.toUpperCase()}${entry.event?.slice(1)}`) }}</strong><span>{{ automationRuleName(entry.rule) }} · {{ entry.action }} · {{ entry.key?.replace(/^.*:/, '') }}</span><small>{{ entry.ts }}</small></article>
             <div v-if="!visibleAutomationLogs.length" class="empty-state"><p>{{ automationLogs.length ? t('noMatches') : t('noHistory') }}</p></div>
+            <Button v-else-if="displayedAutomationLogs.length < visibleAutomationLogs.length" variant="outline" size="sm" class="automation-log-more" @click="automationLogLimit += automationLogPageSize">{{ t('loadMore') }}</Button>
           </section>
         </template>
         <template v-else>

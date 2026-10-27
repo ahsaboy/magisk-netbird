@@ -33,19 +33,16 @@ ACTION 按钮需要 Magisk v28+。
 
 ## 使用
 
-重启前：
-
-```sh
-su -c '/data/adb/netbird/scripts/netbird.service up --setup-key <KEY> --management-url <URL>'
-su -c '/data/adb/netbird/scripts/netbird.service status'
-```
-
-重启后：
+连接并查看状态：
 
 ```sh
 su -c 'netbird.service up --setup-key <KEY> --management-url <URL>'
 su -c 'netbird.service status'
-su -c 'netbird.service log'
+su -c 'netbird.service down'   # 只断开连接，daemon 继续运行
+su -c 'netbird.service stop'   # 停止 daemon
+su -c 'netbird.service start'
+su -c 'netbird.service peers'
+su -c 'netbird.service log --once'
 ```
 
 在未安装挂载 metamodule（如 meta-overlayfs）的 KernelSU 上，模块的
@@ -64,46 +61,12 @@ su -c 'echo -n <KEY> > /data/adb/netbird/setup.key && chmod 600 /data/adb/netbir
 su -c 'netbird.service up --setup-key-file /data/adb/netbird/setup.key --management-url <URL>'
 ```
 
-查看每个对端的连接细节（P2P 直连 / Relayed 中转、延迟、流量、最近握手）：
+KernelSU 用户可打开模块 WebUI 查看状态、路由、健康信息和配置，并管理连接及定时自动化规则。
+`down` 只断开连接，不会停止 daemon 或 watcher；需要停止 daemon 时使用 `stop`。
 
-```sh
-su -c 'netbird.service peers'
-```
-
-在 Magisk App（v28+）或 KernelSU/APatch 管理器中，点击模块的 **ACTION** 按钮会无参数执行
-`action.sh`，随后等待音量键选择：音量上键启动 NetBird，音量下键停止 NetBird。`action.sh`
-也支持显式动作，适合从 root shell 调用：
-
-```sh
-su -c '<模块目录>/action.sh status'
-su -c '<模块目录>/action.sh refresh'
-su -c '<模块目录>/action.sh start'
-su -c '<模块目录>/action.sh stop'
-su -c '<模块目录>/action.sh restart'
-su -c '<模块目录>/action.sh peers'
-su -c '<模块目录>/action.sh log'
-su -c '<模块目录>/action.sh version'
-```
-
-可用动作包括 `status`、`refresh`、`start`、`stop`、`restart`、`route`、`peers`、`log`、`version` 和
-`help`。需要非交互地刷新状态时使用显式的 `status` 动作。其中 `log` 只输出最近 200 行并退出，避免管理器
-ACTION 页面持续等待；持续跟踪日志仍使用 `su -c 'netbird.service log'`。`stop` 后显示
-`daemon: stopped` 是预期结果，不代表停止失败。动作也可直接通过 `netbird.service` 调用，例如
-`su -c 'netbird.service peers'`。
-
-KernelSU 用户可以打开模块的 **WebUI** 使用移动端优先的控制台。页面会把 status JSON
-解析为连接卡片和 Peers 列表，并分开展示 Peers、Networks/Routes、健康检查、版本、状态存储、
-Profiles。Network 选择使用固定的 `networks select`/`deselect` 动作，单个
-Network 的启用会追加到当前选择。`0.0.0.0/0` 或 `::/0` 表示管理端提供的出口路由，出口节点本身不由本模块选择。
-
-WebUI 不接收 setup key，也不接受任意 shell 命令。概览页提供需确认的连接控制：
-重连 / 断开（走 daemon IPC 的 `up`/`down`，秒级完成，复用 config.json 中持久化的
-连接参数），以及启动守护进程 / 停止守护进程。守护进程启停以脱离方式在后台执行，
-页面轮询状态直到变化，因此关闭 WebUI 不会中断进行中的操作；所有控制均需确认
-弹窗。无 WebUI 的管理器仍可通过模块 ACTION 按钮操作。页面不展示原始日志，重点
-提供解析后的状态、Peers、路由、健康检查、Profile 和状态信息。右上角语言选择器支持中文和 English，首次打开跟随系统语言，
-用户选择会持久化。点击 Peers 或 Networks 会立即切换页面，再静默刷新数据；同一数据源 5 秒内不会重复执行
-root 命令。管理器的 ACTION 按钮仍保持无参数的“刷新规则并显示状态”入口。
+<p align="center">
+  <img src="docs/kernelsu-webui.jpg" alt="Magisk NetBird KernelSU WebUI" width="360">
+</p>
 
 ## 配置
 
@@ -125,10 +88,8 @@ root 命令。管理器的 ACTION 按钮仍保持无参数的“刷新规则并�
 | `NB_LOG_LEVEL` | `info` | NetBird 日志级别。 |
 | `NB_LOG_MAX_SIZE_MB` | `5` | NetBird 自带的 `client.log` 轮转上限（MiB，上游默认 15）。 |
 | `NB_WATCHDOG` | `on` | 看门狗：daemon 状态连续无响应时自动重启；`off` 关闭。 |
-| `NB_WATCHDOG_FAILS` | `3` | 连续多少次状态探测失败（每刷新周期一次）后触发重启。 |
-| `NB_WATCHDOG_MAX_RESTARTS` | `10` | 重启预算；连续 5 个健康周期后重置。 |
-| `NB_PROP_UPDATE_INTERVAL` | `60` | 已连接时的监视线周期（秒）：路由复查、看门狗探测与状态刷新（每周期仅一次 `status --json` 调用）。 |
-| `NB_IDLE_UPDATE_INTERVAL` | `300` | 客户端断开时的降频周期：跳过路由复查与看门狗重启，仅刷新状态行；`webui up` 会按需拉起已停止的 daemon 并在重连时恢复 underlay 路由。 |
+| `NB_WATCHDOG_FAILS` | `3` | 连续探测失败多少次后重启（已连接时每 30 秒探测，主动断开后每 300 秒探测）。 |
+| `NB_WATCHDOG_MAX_RESTARTS` | `10` | 重启预算；连续 5 次健康探测后重置。 |
 
 上表所有变量（以及官方客户端支持的任何其他变量）都可以持久化到
 `/data/adb/netbird/.env`（每行 `KEY=VALUE`，`#` 开头为注释）；真实环境
@@ -145,14 +106,10 @@ NetBird userspace firewall 和 userspace WireGuard，避免 native `ip6tables` �
 修改后需要先执行 `netbird.service down`、再执行 `netbird.service up`
 （或直接 `netbird.service restart`）。
 
-状态监视线程会在每个刷新周期（默认 60 秒）重新应用 Android root 的 IPv4/IPv6 underlay 路由规则，
-因此 Wi-Fi/蜂窝/双卡网络切换不再需要手动重启。同一监视线程还会在每个周期探测
-daemon 健康——每周期仅共享一次 `status --json` 调用——连续 3 次探测无响应即自动重启
-（看门狗：预算 10 次，连续 5 个健康周期后重置——可用 `NB_WATCHDOG*` 调整，
-`NB_WATCHDOG=off` 关闭）。客户端主动断开（`netbird down`）期间监视线程自动待机：
-跳过路由复查与看门狗重启，周期放宽到 `NB_IDLE_UPDATE_INTERVAL`（默认 300 秒），
-断开状态下几乎零开销；`webui up` 会按需拉起已死的 daemon 并在重连时立即刷新 underlay 路由。
-`netbird.service stop`（以及卸载）会清除模块添加的所有 ip 规则和 iptables 规则。
+Watcher 每 30 秒检查一次 daemon 进程；已连接时每 30 秒探测 NetBird 状态，主动断开后改为每 300 秒探测。
+连续探测失败达到配置次数后，看门狗会重启无响应的 daemon。
+`netbird.service down` 只断开连接；`stop` 停止 daemon，之后可用 `start` 或 `up` 启动。
+卸载模块时会清理模块添加的网络规则。
 
 ## 动态状态
 

@@ -174,13 +174,17 @@ button { touch-action: manipulation; }
 .empty-state { display: flex; min-height: 112px; align-items: center; justify-content: center; flex-direction: column; gap: 9px; color: var(--muted-foreground); text-align: center; }
 .empty-state p { max-width: 260px; margin: 0; font-size: 12px; line-height: 1.5; }
 .empty-icon { display: grid; width: 38px; height: 38px; place-items: center; border-radius: 14px; background: var(--secondary); color: var(--secondary-foreground); }
-.peer-row, .network-row { padding: 13px 0; border-top: 1px solid var(--border); }
+.peer-row, .network-row { border-top: 1px solid var(--border); }
+.peer-row { padding: 9px 0; }
+.network-row { padding: 13px 0; }
 .peer-main { display: flex; min-width: 0; align-items: center; gap: 10px; }
-.peer-avatar { display: grid; width: 38px; height: 38px; flex: 0 0 auto; place-items: center; border-radius: 14px; background: var(--secondary); color: var(--secondary-foreground); font-size: 13px; font-weight: 700; }
 .peer-ident, .network-ident { display: flex; min-width: 0; flex: 1; flex-direction: column; gap: 3px; }
-.peer-ident strong, .network-ident strong { overflow-wrap: anywhere; font-size: 12px; }
-.peer-ident span, .network-ident span { color: var(--muted-foreground); font-size: 10px; line-height: 1.45; overflow-wrap: anywhere; }
-.peer-stats { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 12px; margin: 12px 0 0 48px; }
+.peer-ident { gap: 2px; }
+.peer-ident strong { overflow-wrap: anywhere; font-size: 14px; line-height: 1.25; }
+.peer-ident span { color: var(--muted-foreground); font-size: 12px; line-height: 1.35; overflow-wrap: anywhere; }
+.network-ident strong { overflow-wrap: anywhere; font-size: 12px; }
+.network-ident span { color: var(--muted-foreground); font-size: 10px; line-height: 1.45; overflow-wrap: anywhere; }
+.peer-stats { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 12px; margin: 8px 0 0; }
 .peer-stat { min-width: 0; display: flex; flex-direction: column; gap: 2px; }
 .peer-stat span { color: var(--muted-foreground); font-size: 10px; }
 .peer-stat strong { overflow-wrap: anywhere; font-size: 11px; font-weight: 600; font-variant-numeric: tabular-nums; }
@@ -332,6 +336,7 @@ button { touch-action: manipulation; }
   .dialog-footer > button { flex: 1; }
 .automation-log-filters { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; margin: 0 0 6px; }
 .automation-log-filters select { min-width: 0; min-height: 36px; padding: 6px; border: 1px solid var(--input); border-radius: 6px; background: var(--background); color: var(--foreground); font-size: 10px; }
+.automation-log-more { width: 100%; margin-top: 8px; }
 .bottom-nav { grid-template-columns: repeat(5, minmax(0, 1fr)); }
 .automation-form { display: grid; gap: 9px; }
 .automation-form > input, .automation-form > select, .automation-condition-row select, .automation-condition-row input, .automation-mode select { width: 100%; min-width: 0; min-height: 40px; padding: 8px 10px; border: 1px solid var(--input); border-radius: 6px; background: var(--background); color: var(--foreground); font-size: 12px; }

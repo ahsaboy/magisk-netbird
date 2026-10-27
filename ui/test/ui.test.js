@@ -158,6 +158,8 @@ describe("mobile WebUI", () => {
     expect(wrapper.text()).toContain("10 ms");
     expect(wrapper.text()).toContain("1 KB");
     expect(wrapper.text()).toContain("2 KB");
+    expect(wrapper.find(".peer-avatar").exists()).toBe(false);
+    expect(wrapper.findAll(".peer-ident strong").map((node) => node.text())).toContain("relay.example");
   });
 
   it("filters Peers by connection state and sorts by latency", async () => {
@@ -235,6 +237,29 @@ describe("mobile WebUI", () => {
     expect(wrapper.text()).toContain("执行记录");
     expect(commands.some((command) => command.endsWith("webui automation-list"))).toBe(true);
     expect(commands.some((command) => command.endsWith("webui automation-log"))).toBe(true);
+  });
+
+  it("shows ten automation log entries at a time and loads the next batch", async () => {
+    const logs = Array.from({ length: 12 }, (_, index) => {
+      const minute = String(index).padStart(2, "0");
+      return `v=1 ts=2026-10-26T20:${minute}:00+08:00 rule=auto-ab12cd34 action=disconnect event=success key=auto-ab12cd34:2026-10-26T20:${minute}`;
+    }).join("\n");
+    window.ksu.exec = (command, _options, callbackName) => {
+      commands.push(command);
+      const stdout = command.endsWith("automation-list")
+        ? "auto-ab12cd34\tNight route\tdisconnect\t1\t10\tall\tdaily:22:00"
+        : command.endsWith("automation-log") ? logs : JSON.stringify({ daemonStatus: "Connected", peers: [] });
+      window[callbackName](0, stdout, "");
+    };
+    await mountApp();
+    await openTab("automation");
+
+    const history = wrapper.findAll(".section-card").find((section) => section.text().includes("执行记录"));
+    expect(history.findAll(".automation-log-row")).toHaveLength(10);
+    expect(history.find("button.automation-log-more").text()).toBe("加载更多");
+    await history.find("button.automation-log-more").trigger("click");
+    expect(history.findAll(".automation-log-row")).toHaveLength(12);
+    expect(history.find("button.automation-log-more").exists()).toBe(false);
   });
 
   it("creates automation rules disabled without exposing a rule ID field", async () => {
