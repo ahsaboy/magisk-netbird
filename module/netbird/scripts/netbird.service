@@ -9,6 +9,23 @@ module_status_script="$NB_SCRIPTS_DIR/module-status.sh"
 automation_script="$NB_SCRIPTS_DIR/automation.sh"
 overlay_rule_pref="90"
 root_route_rule_pref="100"
+# NetBird marks its own underlay sockets with its control-plane fwmark
+# (NB_FWMARK_BASE, default 0x1bd00). Matching the mark instead of UID 0 keeps
+# forwarded (tethered) traffic and rpfilter lookups, which the kernel also
+# evaluates as UID 0, on Android's own routing rules. Mirror NetBird's parsing:
+# invalid, zero, or low-byte-set bases fall back to the default.
+# Validate on the hex string: mksh test/arithmetic is 32-bit signed.
+resolve_root_route_fwmark() {
+  fwmark_hex="$(printf '%x' "${NB_FWMARK_BASE:-0x1bd00}" 2>/dev/null)" ||
+    fwmark_hex=""
+  case "$fwmark_hex" in
+    '' | *[!0-9a-f]* | ?????????*) fwmark_hex=1bd00 ;;
+    *00) ;;
+    *) fwmark_hex=1bd00 ;;
+  esac
+  printf '0x%s\n' "$fwmark_hex"
+}
+root_route_fwmark="$(resolve_root_route_fwmark)"
 
 is_running() {
   busybox pgrep -f "$NB_DAEMON_CMD" >/dev/null 2>&1
@@ -148,25 +165,36 @@ get_android_default_table() {
   echo "$fallback_table"
 }
 
-# Delete only our pref-100 UID 0 rule. Omit lookup on deletion: some Android
-# ip builds print symbolic table names but reject them as input (invalid ID).
-cleanup_root_route_family() {
+# Delete our pref-100 rules matching one selector ("uidrange 0-0" or
+# "fwmark <mark>"). Omit lookup on deletion: some Android ip builds print
+# symbolic table names but reject them as input (invalid ID).
+cleanup_root_route_selector() {
   cleanup_family="$1"
+  cleanup_selector="$2"
   while :; do
     cleanup_rules="$(family_ip "$cleanup_family" rule show 2>/dev/null)" || {
       log Warning "Failed to inspect IPv$cleanup_family routing rules."
       return 1
     }
     if ! printf '%s\n' "$cleanup_rules" |
-      awk -v p="$root_route_rule_pref:" '$1 == p && /uidrange 0-0/ { found = 1 } END { exit !found }'; then
+      awk -v p="$root_route_rule_pref:" -v s="$cleanup_selector" \
+        '$1 == p && index($0, s) { found = 1 } END { exit !found }'; then
       return 0
     fi
+    # shellcheck disable=SC2086
     family_ip "$cleanup_family" rule del pref "$root_route_rule_pref" \
-      from all uidrange 0-0 >/dev/null 2>&1 || {
-      log Warning "Failed to remove IPv$cleanup_family root uid route rule."
+      from all $cleanup_selector >/dev/null 2>&1 || {
+      log Warning "Failed to remove IPv$cleanup_family root route rule ($cleanup_selector)."
       return 1
     }
   done
+}
+
+# Older versions matched UID 0, which also captured forwarded traffic; always
+# drop that legacy rule alongside the current fwmark rule.
+cleanup_root_route_family() {
+  cleanup_root_route_selector "$1" "uidrange 0-0" || return 1
+  cleanup_root_route_selector "$1" "fwmark $root_route_fwmark"
 }
 
 ensure_android_route_family() {
@@ -179,11 +207,13 @@ ensure_android_route_family() {
     return "$?"
   fi
 
+  cleanup_root_route_selector "$route_family" "uidrange 0-0" || return 1
+
   route_rule_current=0
   for current_lookup in $(
     family_ip "$route_family" rule show 2>/dev/null |
-      awk -v p="$root_route_rule_pref:" \
-        '$1 == p && /uidrange 0-0/ {
+      awk -v p="$root_route_rule_pref:" -v s="fwmark $root_route_fwmark" \
+        '$1 == p && index($0, s) {
           for (i = 1; i <= NF; i++)
             if ($i == "lookup") print $(i + 1)
         }'
@@ -192,11 +222,11 @@ ensure_android_route_family() {
     if [ "$current_id" = "$route_table" ]; then
       route_rule_current=1
     else
-      # Priority plus UID range identifies this module's rule; lookup names
+      # Priority plus fwmark identifies this module's rule; lookup names
       # are unreliable in DEL requests on some Android ip builds.
       family_ip "$route_family" rule del pref "$root_route_rule_pref" \
-        from all uidrange 0-0 >/dev/null 2>&1 || {
-        log Warning "Failed to remove stale IPv$route_family root uid route rule."
+        from all fwmark "$root_route_fwmark" >/dev/null 2>&1 || {
+        log Warning "Failed to remove stale IPv$route_family root route rule."
         return 1
       }
     fi
@@ -205,8 +235,8 @@ ensure_android_route_family() {
   [ "$route_rule_current" -eq 1 ] && return 0
 
   if ! family_ip "$route_family" rule add pref "$root_route_rule_pref" \
-    from all uidrange 0-0 lookup "$route_table" >/dev/null 2>&1; then
-    log Warning "Failed to add IPv$route_family root uid route rule for table $route_table."
+    from all fwmark "$root_route_fwmark" lookup "$route_table" >/dev/null 2>&1; then
+    log Warning "Failed to add IPv$route_family root route rule for table $route_table."
     return 1
   fi
   return 0
