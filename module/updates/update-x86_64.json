@@ -1,6 +1,6 @@
 {
-  "version": "v1.4.11-0.81.5",
-  "versionCode": 10411,
-  "zipUrl": "https://github.com/ahsaboy/magisk-netbird/releases/download/v1.4.11/magisk-netbird-10411-v1.4.11-0.81.5.zip",
+  "version": "v1.4.12-0.82.0",
+  "versionCode": 10412,
+  "zipUrl": "https://github.com/ahsaboy/magisk-netbird/releases/download/v1.4.12/magisk-netbird-10412-v1.4.12-0.82.0.zip",
   "changelog": "https://cdn.jsdelivr.net/gh/ahsaboy/magisk-netbird@main/release-notes.md"
 }
