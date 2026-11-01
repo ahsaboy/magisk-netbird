@@ -24,11 +24,11 @@ export NB_DIR="$tmp_dir"
 export NB_WATCHDOG=off
 automation="$tmp_dir/scripts/automation.sh"
 schedule="daily:$(date -d '1 minute ago' '+%H:%M')"
-rule_id="$(sh "$automation" save '' "Night disconnect" disconnect 1 10 all "$schedule")"
-localized_id="$(sh "$automation" save '' '夜间连接规则' connect 0 5 all "$schedule")"
+rule_id="$(sh "$automation" save '' "Night disconnect" disconnect 1 all "$schedule")"
+localized_id="$(sh "$automation" save '' '夜间连接规则' connect 0 all "$schedule")"
 case "$rule_id" in auto-[a-f0-9][a-f0-9][a-f0-9][a-f0-9][a-f0-9][a-f0-9][a-f0-9][a-f0-9]) ;; *) exit 1 ;; esac
 
-if sh "$automation" save '' bad-name 'disconnect;id' 1 10 all "$schedule" >/dev/null 2>&1; then
+if sh "$automation" save '' bad-name 'disconnect;id' 1 all "$schedule" >/dev/null 2>&1; then
   echo "unsafe action was accepted" >&2
   exit 1
 fi
@@ -40,7 +40,7 @@ printf '%s\n' "$list_output" | grep -F "$localized_id$(printf '\t')夜间连接�
 sh "$automation" evaluate
 sh "$automation" evaluate
 journal="$tmp_dir/run/automation.log"
-negative_id="$(TZ=Etc/GMT+8 sh "$automation" save '' 'West timezone' disconnect 1 9 any "daily:$(TZ=Etc/GMT+8 date -d '1 minute ago' '+%H:%M')")"
+negative_id="$(TZ=Etc/GMT+8 sh "$automation" save '' 'West timezone' disconnect 1 any "daily:$(TZ=Etc/GMT+8 date -d '1 minute ago' '+%H:%M')")"
 TZ=Etc/GMT+8 sh "$automation" evaluate
 TZ=Etc/GMT+8 sh "$automation" evaluate
 [ "$(grep -c "key=$negative_id:" "$journal")" = 1 ]
@@ -54,21 +54,21 @@ if sh "$automation" log | grep -F "$forged_record" >/dev/null; then
   exit 1
 fi
 
-connect_id="$(sh "$automation" save '' 'Higher priority connect' connect 1 20 all "$schedule")"
+connect_id="$(sh "$automation" save '' 'Ordered connect' connect 1 all "$schedule")"
 sh "$automation" evaluate
-[ "$(grep -c '^up$' "$tmp_dir/actions.log")" = 1 ]
-grep -F "rule=$rule_id action=disconnect event=conflict key=$rule_id:" "$journal" >/dev/null
+[ ! -f "$tmp_dir/actions.log" ]
+grep -F "rule=$connect_id action=connect event=conflict key=$connect_id:" "$journal" >/dev/null
 sh "$automation" evaluate
-[ "$(grep -c '^up$' "$tmp_dir/actions.log")" = 1 ]
+[ ! -f "$tmp_dir/actions.log" ]
 any_second_schedule="daily:$(date -d '2 minutes ago' '+%H:%M')"
-any_id="$(sh "$automation" save '' 'Any matching' connect 1 40 any "$schedule" "$any_second_schedule")"
-all_id="$(sh "$automation" save '' 'All matching' connect 1 50 all "$schedule" "$schedule")"
+any_id="$(sh "$automation" save '' 'Any matching' connect 1 any "$schedule" "$any_second_schedule")"
+all_id="$(sh "$automation" save '' 'All matching' connect 1 all "$schedule" "$schedule")"
 sh "$automation" evaluate
-[ "$(grep -c '^up$' "$tmp_dir/actions.log")" = 4 ]
+[ "$(grep -c '^up$' "$tmp_dir/actions.log")" = 1 ]
 sh "$automation" evaluate
-[ "$(grep -c '^up$' "$tmp_dir/actions.log")" = 4 ]
+[ "$(grep -c '^up$' "$tmp_dir/actions.log")" = 1 ]
 
-rotate_id="$(sh "$automation" save '' 'Rotation checkpoint' connect 1 30 all "$schedule")"
+rotate_id="$(sh "$automation" save '' 'Rotation checkpoint' connect 1 all "$schedule")"
 old_key="$rule_id:$(date -d '1 minute ago' '+%Y-%m-%dT%H:%M')"
 old_record="v=1 ts=$(date '+%Y-%m-%dT%H:%M:%S%z' | sed 's/\([+-][0-9][0-9]\)\([0-9][0-9]\)$/\1:\2/') rule=$rule_id action=disconnect event=skipped key=$old_key"
 count=0
@@ -81,7 +81,7 @@ sh "$automation" evaluate
 [ -f "$journal.1" ]
 [ "$(wc -c < "$journal" | tr -d ' ')" -lt 262144 ]
 sh "$automation" evaluate
-[ "$(grep -c '^up$' "$tmp_dir/actions.log")" = 5 ]
+[ "$(grep -c '^up$' "$tmp_dir/actions.log")" = 1 ]
 
 if sh "$automation" delete auto-deadbeef >/dev/null 2>&1; then
   echo "unknown rule deletion succeeded" >&2

@@ -88,7 +88,7 @@ parse_rule() {
   parsed_name=""
   parsed_action=""
   parsed_enabled=""
-  parsed_priority=""
+  parsed_order=""
   parsed_mode=""
   parsed_conditions=""
   parsed_condition_count=0
@@ -98,7 +98,7 @@ parse_rule() {
     rule_key="${rule_line%%=*}"
     rule_value="${rule_line#*=}"
     case "$rule_key" in
-      id|name|action|enabled|priority|mode) ;;
+      id|name|action|enabled|mode|order|priority) ;;
       condition)
         valid_schedule "$rule_value" || return 1
         parsed_condition_count=$((parsed_condition_count + 1))
@@ -115,16 +115,30 @@ parse_rule() {
       name) parsed_name="$rule_value" ;;
       action) parsed_action="$rule_value" ;;
       enabled) parsed_enabled="$rule_value" ;;
-      priority) parsed_priority="$rule_value" ;;
+      order) parsed_order="$rule_value" ;;
+      priority) ;;
       mode) parsed_mode="$rule_value" ;;
     esac
   done < "$1"
   valid_id "$parsed_id" && valid_name "$parsed_name" && valid_action "$parsed_action" || return 1
   case "$parsed_enabled" in 0|1) ;; *) return 1 ;; esac
-  case "$parsed_priority" in [0-9]|[1-9][0-9]) ;; *) return 1 ;; esac
+  case "$parsed_order" in ''|[0-9]|[1-9][0-9]*) ;; *) return 1 ;; esac
   case "$parsed_mode" in all|any) ;; *) return 1 ;; esac
   [ "$parsed_condition_count" -ge 1 ] || return 1
   return 0
+}
+
+next_rule_order() {
+  next_order=1
+  for existing_rule in "$RULE_DIR"/*.conf; do
+    [ -f "$existing_rule" ] || continue
+    parse_rule "$existing_rule" || continue
+    case "$parsed_order" in
+      ''|*[!0-9]*) ;;
+      *) [ "$parsed_order" -ge "$next_order" ] && next_order=$((parsed_order + 1)) ;;
+    esac
+  done
+  printf '%s\n' "$next_order"
 }
 
 write_rule() {
@@ -132,13 +146,11 @@ write_rule() {
   write_name="$2"
   write_action_name="$3"
   write_enabled="$4"
-  write_priority="$5"
-  write_mode="$6"
-  shift 6
+  write_mode="$5"
+  shift 5
   [ "$#" -ge 1 ] && [ "$#" -le 8 ] || return 2
   valid_name "$write_name" && valid_action "$write_action_name" || return 2
   case "$write_enabled" in 0|1) ;; *) return 2 ;; esac
-  case "$write_priority" in [0-9]|[1-9][0-9]) ;; *) return 2 ;; esac
   case "$write_mode" in all|any) ;; *) return 2 ;; esac
   for write_condition in "$@"; do valid_schedule "$write_condition" || return 2; done
   if [ -z "$write_id" ]; then
@@ -152,14 +164,21 @@ write_rule() {
       valid_id "$write_id" || continue
       [ ! -e "$RULE_DIR/$write_id.conf" ] && break
     done
+    write_order=0
   else
     valid_id "$write_id" || return 2
     [ -f "$(rule_file "$write_id")" ] || return 1
+    parse_rule "$(rule_file "$write_id")" || return 1
+    write_order="$parsed_order"
+  fi
+  [ -n "$write_order" ] || write_order=0
+  if [ "$write_order" -eq 0 ]; then
+    write_order="$(next_rule_order)"
   fi
   write_tmp="$RULE_DIR/.${write_id}.$$"
   {
-    printf 'id=%s\nname=%s\naction=%s\nenabled=%s\npriority=%s\nmode=%s\n' \
-      "$write_id" "$write_name" "$write_action_name" "$write_enabled" "$write_priority" "$write_mode"
+    printf 'id=%s\nname=%s\naction=%s\nenabled=%s\norder=%s\nmode=%s\n' \
+      "$write_id" "$write_name" "$write_action_name" "$write_enabled" "$write_order" "$write_mode"
     for write_condition in "$@"; do printf 'condition=%s\n' "$write_condition"; done
   } > "$write_tmp" || { rm -f "$write_tmp"; return 1; }
   chmod 0600 "$write_tmp" && mv -f "$write_tmp" "$(rule_file "$write_id")" || {
@@ -174,8 +193,8 @@ list_rules() {
     [ -f "$file" ] || continue
     parse_rule "$file" || continue
     printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\n' \
-      "$parsed_id" "$parsed_name" "$parsed_action" "$parsed_enabled" "$parsed_priority" "$parsed_mode" "$parsed_conditions"
-  done | sort -t "$(printf '\t')" -k5,5nr -k1,1
+      "$parsed_order" "$parsed_id" "$parsed_name" "$parsed_action" "$parsed_enabled" "$parsed_mode" "$parsed_conditions"
+  done | sort -t "$(printf '\t')" -k1,1n -k2,2 | cut -f2-
 }
 
 delete_rule() {
@@ -416,7 +435,7 @@ evaluate_rules() {
   rules_tmp="$NB_RUN_DIR/automation.rules.$$"
   : > "$occurrence_actions" || { release_lock; return 1; }
   list_rules > "$rules_tmp" || { rm -f "$rules_tmp" "$occurrence_actions"; release_lock; return 1; }
-  while IFS="$(printf '\t')" read -r parsed_id parsed_name parsed_action parsed_enabled parsed_priority parsed_mode parsed_conditions; do
+  while IFS="$(printf '\t')" read -r parsed_id parsed_name parsed_action parsed_enabled parsed_mode parsed_conditions; do
     [ "$parsed_enabled" = 1 ] || continue
     due_occurrences=""
     matched_conditions=0
@@ -455,7 +474,7 @@ case "${1:-}" in
     ;;
   save)
     shift
-    [ "$#" -ge 7 ] && [ "$#" -le 14 ] || exit 2
+    [ "$#" -ge 6 ] && [ "$#" -le 13 ] || exit 2
     acquire_lock || exit 1
     saved_id="$(write_rule "$@")"
     save_rc="$?"
@@ -479,7 +498,7 @@ case "${1:-}" in
     journal_list
     ;;
   *)
-    echo "usage: automation.sh {list|save id-or-new name action enabled priority mode condition...|delete id|evaluate|log}" >&2
+    echo "usage: automation.sh {list|save id-or-new name action enabled mode condition...|delete id|evaluate|log}" >&2
     exit 2
     ;;
 esac

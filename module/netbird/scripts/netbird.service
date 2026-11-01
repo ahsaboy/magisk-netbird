@@ -653,7 +653,7 @@ usage() {
   echo "usage: netbird.service {start|stop|restart|status|up|down|login|log|refresh|route|peers|version|webui}"
   echo "  log follows the client log; use log --once for the latest 200 lines."
   echo "  webui actions: status health version networks networks-select networks-append networks-deselect up down daemon-start daemon-stop automation-list automation-save automation-delete automation-log state profile-list profile-select"
-  echo "  automation-save arguments: id-or-empty name action enabled priority mode condition... (1-8 conditions)"
+  echo "  automation-save arguments: id-or-empty name action enabled mode condition... (1-8 conditions)"
   echo "  up always adds --disable-dns before your extra flags."
   echo "  peers shows per-peer connection type (P2P/Relayed), latency and traffic."
   echo "  Set NB_DISABLE_IPV6=true and/or NB_DISABLE_FIREWALL=true to append those on up."

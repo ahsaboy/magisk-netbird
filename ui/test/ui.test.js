@@ -98,6 +98,7 @@ describe("mobile WebUI", () => {
     await wrapper.get('[data-tab="peers"]').trigger("click");
     await nextTick();
     expect(wrapper.get('[data-tab="peers"]').attributes("aria-current")).toBe("page");
+    expect(wrapper.get(".status-banner").classes()).toContain("is-compact");
     expect(wrapper.get(".view-stage").exists()).toBe(true);
 
     const page = wrapper.find(".page-scroll");
@@ -110,6 +111,10 @@ describe("mobile WebUI", () => {
     await page.trigger("touchend", { changedTouches: [{ clientX: 260, clientY: 224 }] });
     await nextTick();
     expect(wrapper.get('[data-tab="peers"]').attributes("aria-current")).toBe("page");
+
+    await wrapper.get('[data-tab="overview"]').trigger("click");
+    await nextTick();
+    expect(wrapper.get(".status-banner").classes()).not.toContain("is-compact");
   });
 
   it("shows the selected destination before a slow bridge read completes", async () => {
@@ -227,7 +232,7 @@ describe("mobile WebUI", () => {
     window.ksu.exec = (command, _options, callbackName) => {
       commands.push(command);
       const stdout = command.endsWith("automation-list")
-        ? "auto-ab12cd34\tNight route\tdisconnect\t1\t10\tall\tdaily:22:00"
+        ? "auto-ab12cd34\tNight route\tdisconnect\t1\tall\tdaily:22:00"
         : command.endsWith("automation-log") ? "v=1 ts=2026-10-26T20:30:00+08:00 rule=auto-ab12cd34 action=disconnect event=success key=auto-ab12cd34:2026-10-26T20:30" : JSON.stringify({ daemonStatus: "Connected", peers: [] });
       window[callbackName](0, stdout, "");
     };
@@ -247,14 +252,14 @@ describe("mobile WebUI", () => {
     window.ksu.exec = (command, _options, callbackName) => {
       commands.push(command);
       const stdout = command.endsWith("automation-list")
-        ? "auto-ab12cd34\tNight route\tdisconnect\t1\t10\tall\tdaily:22:00"
+        ? "auto-ab12cd34\tNight route\tdisconnect\t1\tall\tdaily:22:00"
         : command.endsWith("automation-log") ? logs : JSON.stringify({ daemonStatus: "Connected", peers: [] });
       window[callbackName](0, stdout, "");
     };
     await mountApp();
     await openTab("automation");
-
-    const history = wrapper.findAll(".section-card").find((section) => section.text().includes("执行记录"));
+    await wrapper.findAll('[role="tab"]')[1].trigger("click");
+    const history = wrapper.find(".automation-log-list");
     expect(history.findAll(".automation-log-row")).toHaveLength(10);
     expect(history.find("button.automation-log-more").text()).toBe("加载更多");
     await history.find("button.automation-log-more").trigger("click");
@@ -262,31 +267,55 @@ describe("mobile WebUI", () => {
     expect(history.find("button.automation-log-more").exists()).toBe(false);
   });
 
-  it("creates automation rules disabled without exposing a rule ID field", async () => {
+  it("creates automation rules enabled without exposing execution settings or a rule ID field", async () => {
     await mountApp();
     await openTab("automation");
-    const nameInput = wrapper.find('.automation-form input[aria-label="Rule name"]');
-    expect(nameInput.exists()).toBe(true);
-    await nameInput.setValue("Office schedule");
-    await wrapper.find(".automation-form").trigger("submit");
+    await findButton("新建规则").trigger("click");
+    const nameInput = document.body.querySelector('.automation-form input[aria-label="规则名称"]');
+    expect(nameInput).toBeTruthy();
+    nameInput.value = "Office schedule";
+    nameInput.dispatchEvent(new Event("input", { bubbles: true }));
+    const form = document.body.querySelector('.automation-form');
+    expect(form.textContent).not.toContain("执行设置");
+    expect(form.querySelector('.automation-form-body')).toBeTruthy();
+    form.dispatchEvent(new Event("submit", { bubbles: true, cancelable: true }));
     await flushPromises();
-    expect(commands.some((command) => command.endsWith("webui automation-save '' 'Office schedule' 'disconnect' '0' '10' 'all' 'daily:22:00'"))).toBe(true);
-    expect(wrapper.find('.automation-form input[aria-label="Rule ID"]').exists()).toBe(false);
+    expect(commands.some((command) => command.endsWith("webui automation-save '' 'Office schedule' 'disconnect' '1' 'all' 'daily:22:00'"))).toBe(true);
+    expect(document.body.querySelector('.automation-form input[aria-label="规则 ID"]')).toBeNull();
+    expect(document.body.querySelector('.automation-form input[aria-label="Priority"]')).toBeNull();
+    expect(document.body.querySelector('.automation-form .ui-switch')).toBeNull();
   });
 
   it("saves repeated schedule conditions with the selected matching mode", async () => {
     await mountApp();
     await openTab("automation");
-    await wrapper.find('.automation-form input[aria-label="Rule name"]').setValue("Work hours");
-    await findButton("添加条件").trigger("click");
-    const conditionRows = wrapper.findAll(".automation-condition-row");
-    await conditionRows[1].find("select").setValue("weekly");
-    await conditionRows[1].find('select[aria-label="Weekday"]').setValue("5");
-    await conditionRows[1].find('input[aria-label="Scheduled time"]').setValue("06:30");
-    await wrapper.find('select[aria-label="Condition mode"]').setValue("any");
-    await wrapper.find(".automation-form").trigger("submit");
+    await findButton("新建规则").trigger("click");
+    const dialog = document.body.querySelector(".automation-sheet");
+    const form = dialog.querySelector(".automation-form");
+    const footer = dialog.querySelector(".automation-sheet-footer");
+    expect(footer).toBeTruthy();
+    expect(form.contains(footer)).toBe(false);
+    const nameInput = dialog.querySelector('.automation-form input[aria-label="规则名称"]');
+    nameInput.value = "Work hours";
+    nameInput.dispatchEvent(new Event("input", { bubbles: true }));
+    await nextTick();
+    await dialog.querySelector(".automation-add-condition").click();
+    await nextTick();
+    const conditionRows = dialog.querySelectorAll(".automation-condition-row");
+    conditionRows[1].querySelector("select").value = "weekly";
+    conditionRows[1].querySelector("select").dispatchEvent(new Event("change", { bubbles: true }));
+    await nextTick();
+    const weekday = conditionRows[1].querySelector(".automation-weekday-select");
+    weekday.value = "5";
+    weekday.dispatchEvent(new Event("change", { bubbles: true }));
+    conditionRows[1].querySelector('input[aria-label="执行时间"]').value = "06:30";
+    conditionRows[1].querySelector('input[aria-label="执行时间"]').dispatchEvent(new Event("input", { bubbles: true }));
+    const modeButtons = [...dialog.querySelectorAll(".automation-segmented button")];
+    modeButtons.find((button) => button.textContent.includes("任一满足")).click();
+    await nextTick();
+    dialog.querySelector(".automation-form").dispatchEvent(new Event("submit", { bubbles: true, cancelable: true }));
     await flushPromises();
-    expect(commands.some((command) => command.endsWith("webui automation-save '' 'Work hours' 'disconnect' '0' '10' 'any' 'daily:22:00' 'weekly:5@06:30'"))).toBe(true);
+    expect(commands.some((command) => command.endsWith("webui automation-save '' 'Work hours' 'disconnect' '1' 'any' 'daily:22:00' 'weekly:5@06:30'"))).toBe(true);
   });
 
   it("shows a persistent progress toast while a confirmed action is pending", async () => {
@@ -509,15 +538,18 @@ describe("mobile WebUI", () => {
 
   it("offers four persisted theme presets and restores the saved selection", async () => {
     await mountApp();
+    expect(document.documentElement.dataset.theme).toBe("amber");
     await wrapper.find(".theme-menu-trigger").trigger("click");
     await flushPromises();
     const menu = document.body.querySelector('[role="menu"]');
     expect(menu).toBeTruthy();
-    expect(menu.textContent).toContain("NetBird 绿意");
-    expect(menu.textContent).toContain("海洋蓝");
-    expect(menu.textContent).toContain("琥珀信号");
-    expect(menu.textContent).toContain("玫瑰链路");
-    const amber = [...menu.querySelectorAll('[role="menuitemradio"]')].find((item) => item.textContent.includes("琥珀信号"));
+    expect(menu.textContent).toContain("NetBird 默认");
+    expect(menu.textContent).toContain("绿色");
+    expect(menu.textContent).toContain("蓝色");
+    expect(menu.textContent).toContain("玫红色");
+    const themeItems = [...menu.querySelectorAll('[role="menuitemradio"]')];
+    expect(themeItems[0].textContent).toContain("NetBird 默认");
+    const amber = themeItems.find((item) => item.textContent.includes("NetBird 默认"));
     amber.click();
     await flushPromises();
     expect(document.documentElement.dataset.theme).toBe("amber");
@@ -545,7 +577,7 @@ describe("mobile WebUI", () => {
     await wrapper.find(".theme-menu-trigger").trigger("click");
     await flushPromises();
     const themeMenu = document.body.querySelector('[role="menu"]');
-    expect(themeMenu.textContent).toContain("Ocean Blue");
-    expect(themeMenu.textContent).not.toContain("海洋蓝");
+    expect(themeMenu.textContent).toContain("Blue");
+    expect(themeMenu.textContent).not.toContain("蓝色");
   });
 });
