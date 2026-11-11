@@ -1,9 +1,9 @@
-## v1.4.12 — NetBird v0.82.0
-- Updated the official NetBird client to v0.82.0 for x86_64, arm64-v8a, and armv7; release packaging verifies upstream SHA-256 checksums.
-- Fixed Android underlay routing to match NetBird's fwmark, preserving tethered traffic instead of matching every UID 0 packet. Thanks to York Wu for the contribution.
-- Compact peer rows and paginated automation history; redesigned automation rules with stable ordering, search/filters, editing, and execution details.
-- NetBird updates since v0.81.4 include safer SSH session handling (v0.81.5), more stable HA route selection, `status --table`, and Rosenpass deprecation (v0.82.0).
-- 更新 NetBird 官方客户端至 v0.82.0，覆盖 x86_64、arm64-v8a 和 armv7；发布打包时校验上游 SHA-256。
-- 修正 Android 下层路由规则，改为匹配 NetBird fwmark，避免 UID 0 规则错误影响热点转发流量。感谢 York Wu 的贡献。
-- 精简 Peer 列表并为自动化历史分页；重做规则界面，支持稳定顺序、搜索筛选、编辑和执行详情。
-- NetBird 自 v0.81.4 后的更新包括加固 SSH 会话（v0.81.5）、提升 HA 路由稳定性、新增 `status --table` 及弃用 Rosenpass（v0.82.0）。
+## v1.4.13 — NetBird v0.82.1
+- Updated the official NetBird client to v0.82.1 for x86_64, arm64-v8a, and armv7; release packaging verifies upstream SHA-256 checksums.
+- Hardened SSH authentication and lifecycle handling: reject username changes during JWT authentication, close handshakes and unauthorized sessions, run SFTP through `su`, and default SSH off for stored configs without a peer key.
+- Fixed userspace firewall handling of unspecified local addresses, prevented forwarded traffic from exiting its ingress interface, and corrected nftables peer-protocol matching behind IPv6 extension headers.
+- Removed peers from the interface when they leave the network map and their lazy connection is idle.
+- 更新官方 NetBird 客户端至 v0.82.1，覆盖 x86_64、arm64-v8a 和 armv7；发布时校验上游 SHA-256。
+- 加固 SSH 认证与会话管理：拒绝 JWT 认证期间变更用户名，关闭握手中及已失去授权的会话，SFTP 通过 `su` 启动；缺少 peer key 的旧配置默认关闭 SSH。
+- 修正用户态防火墙对未指定本地地址的识别，阻止转发流量从入站接口原路发出，并修复 IPv6 扩展头后的 nftables peer 协议匹配。
+- peer 离开 network map 且 lazy connection 空闲时，从接口移除该 peer。
