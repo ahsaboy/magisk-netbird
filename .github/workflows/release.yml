@@ -22,6 +22,21 @@ jobs:
           cache: npm
           cache-dependency-path: ui/package-lock.json
 
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: tools/nb-dns/go.mod
+          cache: false
+
+      - name: Test and build DNS helper
+        working-directory: tools/nb-dns
+        run: |
+          go test -race ./...
+          sh ../../tests/dns.test.sh
+          mkdir -p ../../module/netbird/bin
+          CGO_ENABLED=0 GOOS=linux GOARCH=arm64 go build -trimpath -ldflags='-s -w' -o ../../module/netbird/bin/nb-dns-arm64 .
+          CGO_ENABLED=0 GOOS=linux GOARCH=arm GOARM=6 go build -trimpath -ldflags='-s -w' -o ../../module/netbird/bin/nb-dns-arm .
+          CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -trimpath -ldflags='-s -w' -o ../../module/netbird/bin/nb-dns-x86_64 .
+
       - name: Test and build WebUI
         run: |
           npm ci --prefix ui

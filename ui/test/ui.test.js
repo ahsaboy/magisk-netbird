@@ -5,9 +5,11 @@ import App from "../src/App.vue";
 
 const commands = [];
 let wrapper;
+let dnsStatus;
 
 beforeEach(() => {
   commands.length = 0;
+  dnsStatus = { enabled: false, state: "off", reason: "none", ipv6: "off" };
   localStorage.clear();
   document.documentElement.removeAttribute("data-theme");
   localStorage.setItem("netbird.language", "zh");
@@ -33,6 +35,8 @@ beforeEach(() => {
         stdout = "- ID: network-a\n  Network: 10.10.0.0/24\n  Status: Not selected";
       } else if (command.includes("webui health")) {
         stdout = JSON.stringify({ ok: true });
+      } else if (command.endsWith("webui dns-status")) {
+        stdout = JSON.stringify(dnsStatus);
       } else if (command.endsWith("webui version")) {
         stdout = "NetBird 0.80.0";
       }
@@ -68,6 +72,24 @@ function findButton(label, root = wrapper) {
 }
 
 describe("mobile WebUI", () => {
+  it("offers one DNS switch and explains encrypted DNS limitations", async () => {
+    await mountApp();
+    const settings = wrapper.get('[data-testid="dns-settings"]');
+    expect(settings.text()).toContain("将本机明文 DNS 交给 NetBird 解析。");
+    await settings.get('[role="switch"]').trigger("click");
+    await flushPromises();
+    expect(commands.some((command) => command.endsWith("webui dns-set 'on'"))).toBe(true);
+  });
+  it("shows DNS coverage and the cases it cannot redirect", async () => {
+    dnsStatus = { enabled: true, state: "active", reason: "none", ipv6: "reject", resolver: "10.99.255.254:53", fallback: true, privateDns: "opportunistic", privateDnsActive: true, vpn: "tun0", health: "degraded", root: "intercept" };
+    await mountApp();
+    const settings = wrapper.get('[data-testid="dns-settings"]');
+    expect(settings.get('[data-testid="dns-details"]').text()).toContain("原系统 DNS");
+    expect(settings.text()).toContain("改走 IPv4 接管");
+    expect(settings.text()).toContain("tun0");
+    expect(settings.text()).toContain("交回原系统 DNS");
+    expect(settings.text()).toContain("私人 DNS（自动）");
+  });
   it("renders the local NetBird wordmark and five mobile destinations", async () => {
     await mountApp();
     expect(wrapper.get(".brand-mark svg").attributes("viewBox")).toBe("0 0 40 23");
@@ -435,6 +457,8 @@ describe("mobile WebUI", () => {
       commands.push(command);
       if (command.endsWith("webui status")) {
         window[callbackName](0, JSON.stringify({ daemonStatus: "running", peers: [] }), "");
+      } else if (command.endsWith("webui dns-status")) {
+        window[callbackName](0, JSON.stringify({ enabled: false, state: "off" }), "");
       } else {
         pending.push({ command, complete: (stdout) => window[callbackName](0, stdout, "") });
       }

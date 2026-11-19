@@ -5,6 +5,9 @@ DIR=$(dirname "$(realpath "$0")")
 
 case "${1:-}" in
   postinstall)
+    if [ -x "$NB_SCRIPTS_DIR/dns.sh" ]; then
+      "$NB_SCRIPTS_DIR/dns.sh" suspend >/dev/null 2>&1 || true
+    fi
     rm -rf "$NB_RUN_DIR"
     mkdir -p "$NB_RUN_DIR"
     netbird.service restart >/dev/null 2>&1 &

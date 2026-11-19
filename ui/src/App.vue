@@ -89,6 +89,33 @@ const diagnosticItems = ref([]);
 const diagnosticLoading = ref("");
 const profileName = ref("");
 const health = ref({ live: "", ready: "", startup: "" });
+const dns = ref({ enabled: false, state: "off", reason: "none", ipv6: "off", resolver: "", fallback: false, privateDns: "", privateDnsActive: false, vpn: "", health: "", root: "intercept" });
+const dnsAvailable = ref(false);
+const dnsSaving = ref(false);
+const dnsStateLabel = computed(() => t({ off: "dnsOff", waiting: "dnsWaiting", active: "dnsActive", error: "dnsError", "cleanup-pending": "dnsCleanup" }[dns.value.state] || "dnsError"));
+// Coverage rows only describe an active redirect; warnings name the cases the
+// switch cannot cover so an "Active" label is never mistaken for full coverage.
+const dnsDetails = computed(() => {
+  const value = dns.value;
+  if (value.state !== "active") return [];
+  const rows = [
+    { label: t("dnsPublic"), value: t(value.fallback ? "dnsPublicOriginal" : "dnsPublicNetbird") },
+    { label: t("dnsIpv6"), value: t({ nat: "dnsIpv6Covered", tproxy: "dnsIpv6Covered", reject: "dnsIpv6Reject", none: "dnsIpv6None", off: "dnsIpv6Off" }[value.ipv6] || "dnsIpv6Off") },
+    { label: t("dnsRoot"), value: t(value.root === "bypass" ? "dnsRootBypass" : "dnsRootIntercept") }
+  ];
+  if (value.vpn) rows.push({ label: t("dnsVpn"), value: value.vpn });
+  return rows;
+});
+const dnsWarnings = computed(() => {
+  const value = dns.value;
+  if (value.state !== "active") return [];
+  const warnings = [];
+  if (value.health === "degraded") warnings.push(t("dnsDegraded"));
+  if (value.privateDns === "hostname") warnings.push(t("dnsPrivateStrict"));
+  else if (value.privateDnsActive) warnings.push(t("dnsPrivateActive"));
+  if (value.ipv6 === "none") warnings.push(t("dnsIpv6NoneHint"));
+  return warnings;
+});
 const automationRules = ref([]);
 const automationLogs = ref([]);
 const automationTab = ref("rules");
@@ -185,6 +212,7 @@ async function loadStatus() {
     const data = parseJson(result);
     model.value = data ? statusModel(data) : { ...model.value, daemon: result.errno === 1 ? "stopped" : "error" };
     refreshedAt.value = new Date().toLocaleTimeString();
+    await loadDns();
     // Bridge failures surface inside the banner (in-page, not a toast).
     statusError.value = result.errno !== 0 && model.value.daemon === "error"
       ? (result.stderr || result.stdout || "").trim()
@@ -198,6 +226,24 @@ async function loadStatus() {
     }
     return result;
   } finally { statusLoading.value = false; }
+}
+async function loadDns() {
+  try {
+    const result = await runRead("dns");
+    const value = parseJson(result);
+    dnsAvailable.value = result.errno === 0 && typeof value?.enabled === "boolean";
+    if (dnsAvailable.value) dns.value = value;
+  } catch { dnsAvailable.value = false; }
+}
+async function toggleDns(enabled) {
+  if (dnsSaving.value || busy.value) return;
+  dnsSaving.value = true;
+  try {
+    const result = await runAction("webui dns-set", [enabled ? "on" : "off"]);
+    await loadDns();
+    if (result.errno !== 0) throw new Error(t("dnsError"));
+  } catch (error) { tell(error.message, "fail"); }
+  finally { dnsSaving.value = false; }
 }
 const inFlight = new Set();
 async function load(action, force = false) {
@@ -833,6 +879,16 @@ onUnmounted(() => {
               <Button variant="default" class="justify-start" :disabled="busy" @click="runRuntimeAction('refresh', t('confirmRefresh'))"><RefreshCw :size="16" />{{ t('refreshRules') }}</Button>
               <Button variant="outline" class="justify-start" :disabled="busy" @click="runRuntimeAction('route', t('confirmRoutes'))"><Route :size="16" />{{ t('refreshRoutes') }}</Button>
             </div>
+          </section>
+          <section class="section-card" data-testid="dns-settings">
+            <div class="section-heading"><div><h2>{{ t('dnsTitle') }}</h2></div><Switch :model-value="dns.enabled" :disabled="busy || dnsSaving || !dnsAvailable" :aria-label="t('dnsTitle')" @update:model-value="toggleDns" /></div>
+            <p>{{ t('dnsHint') }}</p>
+            <div class="detail-row"><span>{{ t('dnsStatus') }}</span><strong>{{ dnsAvailable ? dnsStateLabel : t('dnsUnavailable') }}</strong></div>
+            <div v-if="dnsDetails.length" class="details-list" data-testid="dns-details">
+              <div v-for="row in dnsDetails" :key="row.label" class="detail-row"><span>{{ row.label }}</span><strong>{{ row.value }}</strong></div>
+            </div>
+            <p v-for="warning in dnsWarnings" :key="warning" role="status">{{ warning }}</p>
+            <p v-if="dns.state === 'error' || dns.state === 'cleanup-pending'" role="alert">{{ t('dnsFailureHint') }} <code>{{ dns.reason }}</code></p>
           </section>
         </template>
 

@@ -8,7 +8,8 @@ const READ_COMMANDS = Object.freeze({
   state: "webui state",
   profiles: "webui profile-list",
   automation: "webui automation-list",
-  automationLog: "webui automation-log"
+  automationLog: "webui automation-log",
+  dns: "webui dns-status"
 });
 
 function quote(value) {
@@ -25,7 +26,7 @@ export function runAction(action, args = []) {
   const allowed = new Set([
     "refresh", "route", "webui networks-append", "webui networks-select",
     "webui networks-deselect", "webui health", "webui profile-select",
-    "webui up", "webui down", "webui automation-save", "webui automation-delete"
+    "webui up", "webui down", "webui automation-save", "webui automation-delete", "webui dns-set"
   ]);
   if (!allowed.has(action)) throw new Error("Unsupported WebUI action");
   return exec([SERVICE, action, ...args.map(quote)].join(" "));

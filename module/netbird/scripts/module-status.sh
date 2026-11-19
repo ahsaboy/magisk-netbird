@@ -261,6 +261,9 @@ watchdog_check() {
 }
 
 watchdog_restart_daemon() {
+  if [ -x "$NB_SCRIPTS_DIR/dns.sh" ]; then
+    "$NB_SCRIPTS_DIR/dns.sh" suspend >/dev/null 2>&1 || true
+  fi
   if command -v busybox >/dev/null 2>&1; then
     wd_pids="$(busybox pgrep -f "$NB_DAEMON_CMD" 2>/dev/null)"
   else
@@ -542,6 +545,12 @@ case "${1:-update}" in
 
       watchdog_check "$status_blob" "$status_probe" "$daemon_present"
       evaluate_rules || true
+      # Keep retrying DNS cleanup after disconnect while owned state remains.
+      if [ -x "$NB_SCRIPTS_DIR/dns.sh" ] &&
+        { [ -f "$NB_DIR/dns-state/owned" ] || [ -f "$NB_DIR/dns-state/helper.pid" ] ||
+          { [ "$connection_state" != "idle" ] && [ "$(cat "$NB_DIR/dns.enabled" 2>/dev/null)" = 1 ]; }; }; then
+        "$NB_SCRIPTS_DIR/dns.sh" sync >/dev/null 2>&1 || true
+      fi
       write_module_prop "$status_blob" >/dev/null 2>&1 || true
       sleep "$heartbeat_interval"
     done
