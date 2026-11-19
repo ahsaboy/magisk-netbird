@@ -87,12 +87,12 @@ func TestExchangePreservesRequestAndSupportsTCP(test *testing.T) {
 			test.Fatal("request mutated")
 		}
 	}
-	if err := check(target, "custom.example", false); err != nil {
+	if err := checkAnswer(target, "custom.example", false, 0); err != nil {
 		test.Fatal(err)
 	}
 }
 
-func TestUDPTruncationRetriesOverTCP(test *testing.T) {
+func TestUDPTruncationIsReturnedToClient(test *testing.T) {
 	target, count := testResolver(test, func(request []byte) []byte {
 		reply := append([]byte(nil), request...)
 		reply[2] = 0x83
@@ -103,8 +103,50 @@ func TestUDPTruncationRetriesOverTCP(test *testing.T) {
 	if err != nil {
 		test.Fatal(err)
 	}
-	if count.Load() != 1 || reply[2]&2 != 0 || binary.BigEndian.Uint16(reply[6:8]) != 1 {
-		test.Fatal("TCP retry failed")
+	if count.Load() != 0 || reply[2]&2 == 0 {
+		test.Fatal("truncated UDP reply was not returned to the client")
+	}
+}
+
+func withEDNS(request []byte, size uint16) []byte {
+	request = append([]byte(nil), request...)
+	request[11] = 1
+	return append(request, 0, 0, 41, byte(size>>8), byte(size), 0, 0, 0, 0, 0, 0)
+}
+
+func TestFitUDPHonoursClientLimit(test *testing.T) {
+	plain, _ := query("large.example", 9)
+	large := answer(plain)
+	for len(large) < 1631 {
+		large = append(large, 0xc0, 0x0c, 0, 1, 0, 1, 0, 0, 0, 60, 0, 4, 10, 1, 2, 3)
+		large[7]++
+	}
+	for _, item := range []struct {
+		request   []byte
+		truncated bool
+	}{
+		{plain, true},
+		{withEDNS(plain, 1232), true},
+		{withEDNS(plain, 256), true},
+		{withEDNS(plain, 4096), false},
+	} {
+		response := fitUDP(item.request, large)
+		if !item.truncated {
+			if !bytes.Equal(response, large) {
+				test.Fatalf("limit %d: reply changed", udpLimit(item.request))
+			}
+			continue
+		}
+		if len(response) > udpLimit(item.request) || response[2]&2 == 0 || rcode(response) != 0 {
+			test.Fatalf("limit %d: got %d bytes, flags %x", udpLimit(item.request), len(response), response[2:4])
+		}
+		if !bytes.Equal(response[12:], plain[12:]) || binary.BigEndian.Uint16(response[4:6]) != 1 || binary.BigEndian.Uint16(response[6:8]) != 0 {
+			test.Fatalf("limit %d: truncated reply lost the question", udpLimit(item.request))
+		}
+	}
+	small := answer(plain)
+	if !bytes.Equal(fitUDP(plain, small), small) {
+		test.Fatal("small reply changed")
 	}
 }
 

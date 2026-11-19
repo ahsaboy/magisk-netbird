@@ -96,9 +96,7 @@ func exchange(target string, request []byte, tcp bool, mark uint32) ([]byte, err
 	if !validReply(request, reply) {
 		return nil, errors.New("invalid UDP DNS reply")
 	}
-	if reply[2]&2 != 0 {
-		return exchange(target, request, true, mark)
-	}
+	// A truncated UDP reply is returned as is: the client retries over TCP.
 	return reply, nil
 }
 
@@ -117,8 +115,12 @@ func writeAll(writer io.Writer, data []byte) error {
 }
 
 // check requires a successful answer for name over UDP and, unless udpOnly,
-// over TCP as well.
+// over TCP as well. It sends with the helper mark.
 func check(target, name string, udpOnly bool) error {
+	return checkAnswer(target, name, udpOnly, helperMark)
+}
+
+func checkAnswer(target, name string, udpOnly bool, mark uint32) error {
 	request, err := query(name, 0x4e42)
 	if err != nil {
 		return err
@@ -128,7 +130,7 @@ func check(target, name string, udpOnly bool) error {
 		transports = transports[:1]
 	}
 	for _, tcp := range transports {
-		reply, err := exchange(target, request, tcp, helperMark)
+		reply, err := exchange(target, request, tcp, mark)
 		if err != nil {
 			return err
 		}
@@ -198,4 +200,53 @@ func reply(request []byte, code byte) []byte {
 
 func failure(request []byte) []byte {
 	return reply(request, rcodeServerFailure)
+}
+
+func skipName(message []byte, offset int) int {
+	for offset < len(message) {
+		length := int(message[offset])
+		switch {
+		case length == 0:
+			return offset + 1
+		case length&0xc0 == 0xc0:
+			return offset + 2
+		case length > 63:
+			return -1
+		}
+		offset += 1 + length
+	}
+	return -1
+}
+
+// udpLimit returns the largest UDP reply the client accepts: the payload size
+// of its EDNS OPT record, or 512 bytes without one.
+func udpLimit(request []byte) int {
+	limit := 512
+	offset := questionEnd(request)
+	if offset == 0 || binary.BigEndian.Uint16(request[4:6]) != 1 {
+		return limit
+	}
+	records := int(binary.BigEndian.Uint16(request[6:8])) + int(binary.BigEndian.Uint16(request[8:10])) + int(binary.BigEndian.Uint16(request[10:12]))
+	for ; records > 0; records-- {
+		offset = skipName(request, offset)
+		if offset < 0 || offset+10 > len(request) {
+			return limit
+		}
+		if binary.BigEndian.Uint16(request[offset:]) == 41 {
+			return max(limit, int(binary.BigEndian.Uint16(request[offset+2:])))
+		}
+		offset += 10 + int(binary.BigEndian.Uint16(request[offset+8:]))
+	}
+	return limit
+}
+
+// fitUDP replaces a reply larger than the client's UDP limit with its header
+// and question, flagged as truncated, so the client retries over TCP.
+func fitUDP(request, response []byte) []byte {
+	if len(response) <= udpLimit(request) {
+		return response
+	}
+	truncated := reply(request, rcode(response))
+	truncated[2], truncated[3] = response[2]|2, response[3]
+	return truncated
 }

@@ -187,7 +187,7 @@ func serveUDP(connection net.PacketConn, dns *resolver, limit chan struct{}) {
 		go func() {
 			defer func() { <-limit }()
 			if response := dns.answer(request, source); response != nil {
-				writePacket(connection, response, remote, original)
+				writePacket(connection, fitUDP(request, response), remote, original)
 			}
 		}()
 	}
