@@ -140,8 +140,18 @@ func TestFitUDPHonoursClientLimit(test *testing.T) {
 		if len(response) > udpLimit(item.request) || response[2]&2 == 0 || rcode(response) != 0 {
 			test.Fatalf("limit %d: got %d bytes, flags %x", udpLimit(item.request), len(response), response[2:4])
 		}
-		if !bytes.Equal(response[12:], plain[12:]) || binary.BigEndian.Uint16(response[4:6]) != 1 || binary.BigEndian.Uint16(response[6:8]) != 0 {
-			test.Fatalf("limit %d: truncated reply lost the question", udpLimit(item.request))
+		if !bytes.Equal(response[12:12+len(plain)-12], plain[12:]) {
+			test.Fatal("truncated reply lost the question")
+		}
+		if binary.BigEndian.Uint16(response[4:6]) != 1 || binary.BigEndian.Uint16(response[6:8]) != 0 {
+			test.Fatalf("limit %d: truncated reply has unexpected sections", udpLimit(item.request))
+		}
+		if item.request[11] == 1 {
+			if binary.BigEndian.Uint16(response[10:12]) != 1 || len(response) < 23 || binary.BigEndian.Uint16(response[len(response)-10:len(response)-8]) != 41 {
+				test.Fatalf("limit %d: truncated EDNS reply is missing OPT", udpLimit(item.request))
+			}
+		} else if binary.BigEndian.Uint16(response[10:12]) != 0 {
+			test.Fatal("non-EDNS reply unexpectedly contains OPT")
 		}
 	}
 	small := answer(plain)

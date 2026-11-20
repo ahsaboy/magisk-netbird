@@ -218,26 +218,56 @@ func skipName(message []byte, offset int) int {
 	return -1
 }
 
-// udpLimit returns the largest UDP reply the client accepts: the payload size
-// of its EDNS OPT record, or 512 bytes without one.
 func udpLimit(request []byte) int {
 	limit := 512
-	offset := questionEnd(request)
-	if offset == 0 || binary.BigEndian.Uint16(request[4:6]) != 1 {
+	opt := requestOPT(request)
+	if opt < 0 {
 		return limit
 	}
-	records := int(binary.BigEndian.Uint16(request[6:8])) + int(binary.BigEndian.Uint16(request[8:10])) + int(binary.BigEndian.Uint16(request[10:12]))
-	for ; records > 0; records-- {
+	return max(limit, int(binary.BigEndian.Uint16(request[opt:])))
+}
+
+// requestOPT returns the offset of the EDNS OPT record in the additional section.
+func requestOPT(request []byte) int {
+	offset := questionEnd(request)
+	if offset == 0 || binary.BigEndian.Uint16(request[4:6]) != 1 {
+		return -1
+	}
+	answers := int(binary.BigEndian.Uint16(request[6:8]))
+	authority := int(binary.BigEndian.Uint16(request[8:10]))
+	additional := int(binary.BigEndian.Uint16(request[10:12]))
+	for records := answers + authority + additional; records > 0; records-- {
 		offset = skipName(request, offset)
 		if offset < 0 || offset+10 > len(request) {
-			return limit
+			return -1
 		}
-		if binary.BigEndian.Uint16(request[offset:]) == 41 {
-			return max(limit, int(binary.BigEndian.Uint16(request[offset+2:])))
+		recordType := binary.BigEndian.Uint16(request[offset:])
+		class := offset + 2
+		length := int(binary.BigEndian.Uint16(request[offset+8:]))
+		if recordType == 41 && records <= additional {
+			return class
 		}
-		offset += 10 + int(binary.BigEndian.Uint16(request[offset+8:]))
+		offset += 10 + length
+		if offset > len(request) {
+			return -1
+		}
 	}
-	return limit
+	return -1
+}
+
+// appendOPT includes the required EDNS response record on truncated replies.
+func appendOPT(request, response []byte) []byte {
+	offset := requestOPT(request)
+	if offset < 0 {
+		return response
+	}
+	opt := make([]byte, 11)
+	binary.BigEndian.PutUint16(opt[1:], 41)
+	binary.BigEndian.PutUint16(opt[3:], uint16(udpLimit(request)))
+	opt[7] = request[offset+4] & 0x80
+	opt[8] = request[offset+6]
+	response[11] = 1
+	return append(response, opt...)
 }
 
 // fitUDP replaces a reply larger than the client's UDP limit with its header
@@ -248,5 +278,5 @@ func fitUDP(request, response []byte) []byte {
 	}
 	truncated := reply(request, rcode(response))
 	truncated[2], truncated[3] = response[2]|2, response[3]
-	return truncated
+	return appendOPT(request, truncated)
 }
