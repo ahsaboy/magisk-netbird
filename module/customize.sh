@@ -111,6 +111,11 @@ gh_download() {
 }
 
 ui_print "- Extracting module files"
+if [ -x "$NB_SCRIPTS_DIR/dns.sh" ]; then
+  # DNS ownership state survives in $NB_DIR/dns-state, so the new scripts can
+  # finish a cleanup that fails here.
+  "$NB_SCRIPTS_DIR/dns.sh" suspend >/dev/null 2>&1 || ui_print "! DNS cleanup will be retried after install"
+fi
 # `update` is reserved by Magisk/KernelSU as the pending-update marker.
 # Remove the legacy manifest directory before installing the renamed `updates` directory.
 rm -rf "$MODPATH/update"
@@ -134,6 +139,10 @@ echo "$MODPATH" > "$NB_DIR/module.path"
 
 unzip -qqjo "$ZIPFILE" "netbird/scripts/*" -d "$NB_SCRIPTS_DIR"
 unzip -qqjo "$ZIPFILE" "netbird/settings.sh" -d "$NB_DIR"
+unzip -qqjo "$ZIPFILE" "netbird/bin/nb-dns-$BUNDLED_ARCH" -d "$NB_BIN_DIR" 2>/dev/null || true
+if [ -f "$NB_BIN_DIR/nb-dns-$BUNDLED_ARCH" ]; then
+  mv -f "$NB_BIN_DIR/nb-dns-$BUNDLED_ARCH" "$NB_BIN_DIR/nb-dns"
+fi
 # User-config template; the live config is /data/adb/netbird/.env and is
 # never touched by updates.
 unzip -qqjo "$ZIPFILE" "netbird/netbird.env.example" -d "$NB_DIR" 2>/dev/null || true
@@ -194,5 +203,6 @@ ui_print " After reboot:"
 ui_print "   su -c 'netbird.service up --setup-key <KEY> --management-url <URL>'"
 ui_print "   su -c 'netbird.service status'"
 ui_print " DNS management is disabled by default with --disable-dns."
+ui_print " Optional Android DNS interception: netbird.service dns on"
 ui_print " Tip: prefer --setup-key-file <path> over --setup-key to keep the key"
 ui_print "      out of shell history and 'ps' output."

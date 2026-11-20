@@ -7,6 +7,7 @@ pid_file="$NB_RUN_DIR/netbird.pid"
 cert_trust_script="$NB_SCRIPTS_DIR/cert-trust.sh"
 module_status_script="$NB_SCRIPTS_DIR/module-status.sh"
 automation_script="$NB_SCRIPTS_DIR/automation.sh"
+dns_script="$NB_SCRIPTS_DIR/dns.sh"
 overlay_rule_pref="90"
 root_route_rule_pref="100"
 # NetBird marks its own underlay sockets with its control-plane fwmark
@@ -381,6 +382,7 @@ start_module_status() {
 }
 
 start_service() {
+  [ ! -x "$dns_script" ] || "$dns_script" resume >/dev/null 2>&1 || true
   # Desired-state marker for the watchdog: set whenever the daemon should be
   # running, cleared by stop_service. The watchdog only restarts when set.
   echo 1 > "$NB_RUN_DIR/netbird.desired"
@@ -430,6 +432,11 @@ start_service() {
 }
 
 stop_service() {
+  # A failed DNS cleanup keeps the helper serving the remaining redirect
+  # rules (it falls back to the original resolvers), so stopping proceeds.
+  if [ -x "$dns_script" ] && ! "$dns_script" suspend >/dev/null 2>&1; then
+    log Warning "DNS cleanup failed; the DNS helper keeps serving until the next retry."
+  fi
   # An explicit root stop clears daemon desired state but leaves the module
   # watcher alive. The watcher has its own module lifecycle and must not be
   # coupled to connection or daemon state.
@@ -583,7 +590,11 @@ webui_automation() {
 webui_profile_select() {
   profile_name="${1:-}"
   webui_value "$profile_name" || { echo "invalid profile name" >&2; return 2; }
+  [ ! -x "$dns_script" ] || "$dns_script" suspend >/dev/null 2>&1 || true
   webui_client profile select "$profile_name"
+  profile_rc="$?"
+  [ ! -x "$dns_script" ] || "$dns_script" resume >/dev/null 2>&1 || true
+  return "$profile_rc"
 }
 
 # Connection control (tier 1): bare `netbird up`/`down` over daemon IPC.
@@ -596,6 +607,9 @@ webui_connection() {
     up|down) ;;
     *) return 2 ;;
   esac
+  if [ "$conn_action" = down ] && [ -x "$dns_script" ]; then
+    "$dns_script" suspend >/dev/null 2>&1 || true
+  fi
   if ! is_running; then
     if [ "$conn_action" = "up" ]; then
       nohup "$NB_SCRIPTS_DIR/netbird.service" start >/dev/null 2>&1 &
@@ -607,6 +621,9 @@ webui_connection() {
   fi
   webui_client "$conn_action"
   conn_rc="$?"
+  if [ "$conn_action" = up ] || [ "$conn_rc" -ne 0 ]; then
+    [ ! -x "$dns_script" ] || "$dns_script" resume >/dev/null 2>&1 || true
+  fi
   request_status_probe
   if [ "$conn_action" = "up" ] && [ -x "$NB_SCRIPTS_DIR/netbird.service" ]; then
     # The idle watcher skipped route re-checks while disconnected; restore
@@ -646,6 +663,7 @@ up_cmd() {
   client_cmd up --disable-dns $up_extra_flags "$@"
   rc="$?"
   refresh_runtime
+  [ ! -x "$dns_script" ] || "$dns_script" resume >/dev/null 2>&1 || true
   return "$rc"
 }
 
@@ -656,6 +674,9 @@ usage() {
   echo "  automation-save arguments: id-or-empty name action enabled mode condition... (1-8 conditions)"
   echo "  up always adds --disable-dns before your extra flags."
   echo "  peers shows per-peer connection type (P2P/Relayed), latency and traffic."
+  echo "  dns {on|off|status|check} controls plain UDP/TCP DNS interception."
+  echo "  Names NetBird does not serve go to the resolver the app originally asked."
+  echo "  DoH/DoT, proxied DNS and nonstandard ports bypass interception."
   echo "  Set NB_DISABLE_IPV6=true and/or NB_DISABLE_FIREWALL=true to append those on up."
 }
 
@@ -696,8 +717,12 @@ case "${1:-}" in
     ;;
   down)
     shift
+    [ ! -x "$dns_script" ] || "$dns_script" suspend >/dev/null 2>&1 || true
     client_cmd down "$@"
     rc="$?"
+    if [ "$rc" -ne 0 ]; then
+      [ ! -x "$dns_script" ] || "$dns_script" resume >/dev/null 2>&1 || true
+    fi
     request_status_probe
     update_module_status
     exit "$rc"
@@ -745,6 +770,13 @@ case "${1:-}" in
   webui)
     shift
     case "${1:-}" in
+      dns-status)
+        exec "$dns_script" status
+        ;;
+      dns-set)
+        [ "$#" = 2 ] || exit 2
+        case "$2" in on|off) exec "$dns_script" "$2" ;; *) exit 2 ;; esac
+        ;;
       status)
         webui_status
         exit "$?"
@@ -842,6 +874,11 @@ case "${1:-}" in
     rc="$?"
     update_module_status
     exit "$rc"
+    ;;
+  dns)
+    shift
+    [ "$#" = 1 ] || exit 2
+    case "$1" in on|off|status|check) exec "$dns_script" "$1" ;; *) exit 2 ;; esac
     ;;
   *)
     usage

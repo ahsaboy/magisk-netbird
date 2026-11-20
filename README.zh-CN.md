@@ -17,7 +17,7 @@
 NetBird CLI 常驻进程的精简 Magisk 模块封装。为三种架构打包官方 NetBird
 二进制（当前 v0.82.1）。
 
-使用 `netbird.service up` 加入网络时，默认禁用 DNS 管理。
+DNS 接管默认关闭，可通过 WebUI 的“使用 NetBird DNS”开关或 `netbird.service dns on` 启用。
 
 ## 下载
 
@@ -130,8 +130,31 @@ su -c '/data/adb/netbird/scripts/cert-trust.sh status'
 ```
 
 模块会为 Linux 二进制运行时注入 `/system/etc/resolv.conf`。这不会改变
-Android 普通应用的 DNS；`netbird.service up` 仍会通过 `--disable-dns`
-关闭 NetBird 的 DNS 管理。
+Android 普通应用的 DNS；`netbird.service up` 仍通过 `--disable-dns`
+关闭 Linux 客户端的宿主 DNS 管理。模块自己的开关独立控制 Android DNS 接管。
+
+## NetBird DNS
+
+```sh
+su -c 'netbird.service dns on'
+su -c 'netbird.service dns status'
+su -c 'netbird.service dns check'
+su -c 'netbird.service dns off'
+```
+
+仅接管默认网络上的 DNS 查询。绑定到 IMS、MMS 或其他非默认网络的查询不受影响。回退支持链路本地 IPv6 解析器。
+
+本机发出的明文 UDP/TCP 53 查询会被转给本地 helper，由它先询问 NetBird 解析器，因此 peer 名称、自定义区域和按域 nameserver 都能解析，模块不需要枚举域名。只有当名称不归 NetBird 任何处理器负责时，NetBird 才返回 `REFUSED`；这类查询会带着应用原有的 Android 路由标记，交回应用原本查询的 DNS。NetBird 解析器不可达期间也按此回退，但下文所述的已知 NetBird 名称除外。若在管理端配置了默认（catch-all）nameserver，其余名称都由 NetBird 解析。NetBird 自己返回的 `NXDOMAIN` 和 `SERVFAIL` 原样返回，因此 NetBird 可达时，其区域内的名称不会发给其他 DNS。NetBird 解析器不可达期间，peer 域名和 NetBird 按域 nameserver 的域名返回 `SERVFAIL`；其余名称（包括 NetBird 自定义区域中的记录，客户端状态里看不到这些区域）会发给原 DNS，以保证手机仍能解析。
+
+进入其他 VPN TUN 的查询继续由该 VPN 处理。本机有解析器监听时（监听 `127.0.0.1:53` 或 `[::1]:53` 的本地 DNS 代理），发往它的查询原样到达；没有时，回环查询也会被接管，因为无法使用 Android 解析器的 root 工具会把查询发往 `127.0.0.1:53`。该 VPN 从手机直接发往其上游的明文 DNS 与普通查询一样被接管，不归 NetBird 的名称仍会到达 VPN 选定的上游。DoH、DoT、DoQ、经远端代理或非标准端口发出的 DNS，以及热点客户端的 DNS，无法透明接管，需要时请在对应工具中显式指向 NetBird 解析器。系统私人 DNS 为指定主机名，或在当前网络已验证加密 DNS 时，系统查询不经过接管，WebUI 会提示；其他 VPN 或应用内部选择的加密 DNS 无法检测。
+
+root 进程同样被接管，但发往 NetBird 上游 nameserver 和模块引导 `resolv.conf` 服务器的查询除外，NetBird 自身依赖这些查询。使用上游路由例外的查询会进行源 NAT，将源地址改为物理网络接口的地址。若已有 root 运行的透明代理接管 root DNS，可在 `/data/adb/netbird/.env` 中设置 `NB_DNS_ROOT=bypass`。
+
+开关在重连和重启后保留。断开或停止 NetBird 时撤销接管，重新连接时恢复；网络和 VPN 变化会在数秒内重新协调。清理只删除本模块的链、策略路由和已转换 DNS 连接；开关关闭时，各生命周期钩子不做任何事。
+
+转发入口为 `127.0.0.1:5354` 和 `[::1]:5354`，均支持 UDP/TCP。IPv6 优先 NAT，否则使用只处理本机流量的 TPROXY（表 7121、优先级 85）。两者都不可用时，拒绝 IPv6 明文 DNS，让 Android 改用会被接管的 IPv4 DNS；若当前网络只有 IPv6 DNS，则不处理 IPv6 查询，WebUI 会说明。系统关闭 IPv6 时只接管 IPv4。模块标记只使用第 21-31 位（优先级 84 的上游例外 `0x4e400000`、TPROXY `0x4e600000`、helper 流量 `0x4ea00000`，掩码 `0xffe00000`），不改动 Android 的 netId 和策略位。专属链、优先级或路由表冲突会阻止启用。
+
+开发验证：在 `tools/nb-dns` 下运行 `go test -race ./...`，在仓库根目录运行 `sh tests/dns.test.sh`。发布流程为三个架构编译独立 DNS 工具。
 
 直接调用 NetBird 命令时应带上模块的 daemon 地址：
 

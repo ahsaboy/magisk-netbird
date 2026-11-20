@@ -1,6 +1,9 @@
 #!/system/bin/sh
 
 # stop also removes the module's ip rules and iptables ICMP rules.
+# DNS interception rules live only in the running kernel; a failed cleanup is
+# cleared by the next reboot, so it must not block removal.
+/data/adb/netbird/scripts/dns.sh off >/dev/null 2>&1 || true
 /data/adb/netbird/scripts/netbird.service stop >/dev/null 2>&1 || true
 /data/adb/netbird/scripts/module-status.sh stop >/dev/null 2>&1 || true
 rm -f /dev/netbird /dev/netbird.service
