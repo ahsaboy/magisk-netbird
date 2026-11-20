@@ -15,7 +15,7 @@
 <p align="center"><b><a href="README.md">English</a> · <a href="README.zh-CN.md">中文</a></b></p>
 
 NetBird CLI 常驻进程的精简 Magisk 模块封装。为三种架构打包官方 NetBird
-二进制（当前 v0.82.1）。
+二进制（当前 v0.83.1）。
 
 DNS 接管默认关闭，可通过 WebUI 的“使用 NetBird DNS”开关或 `netbird.service dns on` 启用。
 

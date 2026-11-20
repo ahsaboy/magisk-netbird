@@ -15,7 +15,7 @@
 <p align="center"><b><a href="README.md">English</a> · <a href="README.zh-CN.md">中文</a></b></p>
 
 Minimal Magisk module wrapper for the NetBird CLI daemon. Official NetBird
-binaries (currently v0.82.1) are bundled for three architectures.
+binaries (currently v0.83.1) are bundled for three architectures.
 
 DNS interception is off by default. Enable it with the WebUI's **Use NetBird DNS** switch or `netbird.service dns on`.
 

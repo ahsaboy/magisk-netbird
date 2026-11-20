@@ -1,7 +1,7 @@
 id=magisk-netbird
 name=Magisk NetBird
-version=v1.4.13-0.82.1
-versionCode=10413
+version=v1.5.0-0.83.1
+versionCode=10500
 minMagisk=20400
 author=ahsaboy
 description=NetBird daemon with mobile KernelSU WebUI controls and structured status.
