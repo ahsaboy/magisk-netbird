@@ -214,6 +214,28 @@ dns_exempt_next=/dev/null
 dns_fake_firewall() { printf '%s\n' "$*"; }
 dns_exempt dns_fake_firewall nat NBMOD_DNS4 4
 dns_exempt dns_fake_firewall mangle NBMOD_DNS6 6
+
+# dns_running streams /proc/<pid>/cmdline through cat so tr never reads procfs
+# directly (toybox tr spins at 100% CPU on ESRCH read errors).
+dns_proc="$NB_DIR/proc"
+mkdir -p "$dns_proc/4242" "$dns_state"
+printf '4242 (nb-dns) S 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 98765 0\n' > "$dns_proc/4242/stat"
+printf '%s\000serve\000%s\000' "$dns_helper" "$dns_config" > "$dns_proc/4242/cmdline"
+printf '4242 98765\n' > "$dns_pid_file"
+(
+  tr() { [ -p /dev/fd/0 ] || exit 99; command tr "$@"; }
+  dns_running
+  ( cat() { return 1; }; ! dns_running )
+  printf '%s\000other\000%s\000' "$dns_helper" "$dns_config" > "$dns_proc/4242/cmdline"
+  ! dns_running
+  printf '%s\000serve\000%s\000' "$dns_helper" "$dns_config" > "$dns_proc/4242/cmdline"
+  printf '4242 11111\n' > "$dns_pid_file"
+  ! dns_running
+  printf '4242 98765\n' > "$dns_pid_file"
+  rm -f "$dns_proc/4242/cmdline"
+  ! dns_running
+)
+rm -f "$dns_pid_file"
 FUNCTIONS
 printf '%s\n' '4 tcp wildcard' '4 udp loopback' '6 tcp wildcard' '6 udp loopback' > "$dns_fixture/expected-listeners"
 cat > "$dns_fixture/expected-rules" <<'RULES'
@@ -290,4 +312,19 @@ iptables -w 5 -t mangle -A NBMOD_DNS_UP4 -m owner --uid-owner 0 -d 192.0.2.53 -p
 INSTALL
 grep -E -- '(-[NA] NBMOD_DNS_SNAT4|-A POSTROUTING|rule add pref 84|-A NBMOD_DNS_UP[46].* --set-xmark)' "$DNS_TEST_TRACE" | diff -u "$dns_fixture/expected-install" -
 if grep -Eq -- '-[NA] (NBMOD_DNS_UP6|NBMOD_DNS_SNAT6)' "$DNS_TEST_TRACE"; then exit 1; fi
+# Sourcing settings.sh repeatedly must not duplicate PATH entries.
+sh -c '
+  expected_path="$NB_DIR/bin:$NB_DIR/scripts:/data/adb/magisk:/data/adb/ksu/bin:/usr/bin:/bin:/system/bin"
+  PATH="/usr/bin:/bin"
+  . "$NB_DIR/settings.sh"
+  [ "$PATH" = "$expected_path" ] || exit 1
+  . "$NB_DIR/settings.sh"
+  [ "$PATH" = "$expected_path" ] || exit 1
+  PATH="/usr/bin:/bin:/system/bin"
+  . "$NB_DIR/settings.sh"
+  [ "$PATH" = "$expected_path" ] || exit 1
+  . "$NB_DIR/settings.sh"
+  [ "$PATH" = "$expected_path" ] || exit 1
+'
+
 echo 'PASS: DNS lifecycle, cleanup retries, resolver scoping, and upstream source NAT'
