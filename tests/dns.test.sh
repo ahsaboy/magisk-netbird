@@ -225,15 +225,15 @@ printf '4242 98765\n' > "$dns_pid_file"
 (
   tr() { [ -p /dev/fd/0 ] || exit 99; command tr "$@"; }
   dns_running
-  ( cat() { return 1; }; ! dns_running )
+  ( cat() { return 1; }; if dns_running; then echo 'dns_running succeeded after cmdline read failure' >&2; exit 1; fi )
   printf '%s\000other\000%s\000' "$dns_helper" "$dns_config" > "$dns_proc/4242/cmdline"
-  ! dns_running
+  if dns_running; then echo 'dns_running accepted a mismatched cmdline' >&2; exit 1; fi
   printf '%s\000serve\000%s\000' "$dns_helper" "$dns_config" > "$dns_proc/4242/cmdline"
   printf '4242 11111\n' > "$dns_pid_file"
-  ! dns_running
+  if dns_running; then echo 'dns_running accepted a mismatched start time' >&2; exit 1; fi
   printf '4242 98765\n' > "$dns_pid_file"
   rm -f "$dns_proc/4242/cmdline"
-  ! dns_running
+  if dns_running; then echo 'dns_running succeeded with no cmdline' >&2; exit 1; fi
 )
 rm -f "$dns_pid_file"
 FUNCTIONS
