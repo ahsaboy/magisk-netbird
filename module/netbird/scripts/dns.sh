@@ -12,6 +12,7 @@ dns_health="$dns_state/health"
 dns_lock="$dns_state/lock"
 dns_suspended="$NB_RUN_DIR/dns.suspended"
 dns_connectivity_file="$NB_RUN_DIR/dns-connectivity.$$"
+dns_proc=/proc
 dns_listen=5354
 # Module marks only use bits 21-31. Android owns bits 0-20 (netId, explicit,
 # protected-from-VPN, permission and billing bits) and they must survive.
@@ -178,8 +179,11 @@ dns_running() {
   read -r dns_process dns_start < "$dns_pid_file"
   case "$dns_process" in '' | *[!0-9]*) return 1 ;; esac
   [ -n "$dns_start" ] || return 1
-  [ "$(awk '{print $22}' "/proc/$dns_process/stat" 2>/dev/null)" = "$dns_start" ] || return 1
-  tr '\000' ' ' < "/proc/$dns_process/cmdline" 2>/dev/null | grep -Fq "$dns_helper serve $dns_config"
+  [ "$(awk '{print $22}' "$dns_proc/$dns_process/stat" 2>/dev/null)" = "$dns_start" ] || return 1
+  # Toybox tr loops on while((n=read(...))) and spins at 100% CPU if read()
+  # fails (ESRCH when /proc/<pid>/cmdline disappears after open). Streaming
+  # through cat turns any read error into a clean EOF on the pipe.
+  cat "$dns_proc/$dns_process/cmdline" 2>/dev/null | tr '\000' ' ' 2>/dev/null | grep -Fq "$dns_helper serve $dns_config"
 }
 
 # The helper answers on every listener it owns; any valid reply counts.

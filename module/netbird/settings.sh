@@ -53,7 +53,17 @@ if [ -z "${NB_MOD_DIR:-}" ] && [ -f "$NB_DIR/module.path" ]; then
   NB_MOD_DIR="$(cat "$NB_DIR/module.path" 2>/dev/null || true)"
 fi
 
-export PATH="$NB_BIN_DIR:$NB_SCRIPTS_DIR:/data/adb/magisk:/data/adb/ksu/bin:$PATH:/system/bin"
+nb_path_prefix="$NB_BIN_DIR:$NB_SCRIPTS_DIR:/data/adb/magisk:/data/adb/ksu/bin"
+case ":${PATH:-}:" in
+  ":$nb_path_prefix:"*) ;;
+  *) PATH="$nb_path_prefix${PATH:+:$PATH}" ;;
+esac
+case ":${PATH:-}:" in
+  *":/system/bin:"*) ;;
+  *) PATH="${PATH:+$PATH:}/system/bin" ;;
+esac
+unset nb_path_prefix
+export PATH
 export HOME="$NB_DIR"
 export USER="${USER:-root}"
 export LOGNAME="${LOGNAME:-root}"
